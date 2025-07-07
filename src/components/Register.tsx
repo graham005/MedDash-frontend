@@ -4,24 +4,42 @@ import { useNavigate } from '@tanstack/react-router';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
+import { useAuth } from '@/hooks/useAuth'; // <-- Import the hook
+import type { TSignUp } from '@/types/types';
 
 export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signup, isSignupPending, signupError } = useAuth(); // <-- Use the hook
 
   const form = useForm({
     defaultValues: {
+      firstName: '',
+      lastName: '',
       email: '',
       password: '',
-      phone: '',
-      country: '+1',
+      phoneNumber: '',
+      country: '+254',
       terms: false,
     },
     onSubmit: async ({ value }) => {
       setLoading(true);
-      await new Promise((r) => setTimeout(r, 1000));
-      setLoading(false);
-      alert(JSON.stringify(value, null, 2));
+      try {
+        // Compose the signup payload
+        const payload: TSignUp = {
+          firstName: value.firstName || '',
+          lastName: value.lastName || '',
+          email: value.email,
+          password: value.password,
+          phoneNumber: value.phoneNumber || '',
+        };
+        await signup(payload);
+        navigate({ to: '/login' });
+      } catch (error) {
+        // Error is handled by signupError
+      } finally {
+        setLoading(false);
+      }
     },
   });
 
@@ -33,7 +51,7 @@ export default function RegisterForm() {
         onClick={() => navigate({ to: '/' })}
         aria-label="Close register"
       />
-      <Card className="relative m-2 w-full max-w-sm p-6 rounded-lg shadow-md bg-white dark:bg-slate-900 z-10">
+      <Card className="relative max-h-screen overflow-auto m-2 w-full max-w-sm p-6 rounded-lg shadow-md bg-white dark:bg-slate-900 z-10">
         {/* X Button */}
         <button
           className="absolute top-2 right-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xl font-bold p-1 rounded transition"
@@ -53,6 +71,16 @@ export default function RegisterForm() {
           <div className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Create Your Account</div>
           <div className="text-slate-500 dark:text-slate-400 text-xs">Join in 30 seconds</div>
         </div>
+
+        {/* Display signup error if any */}
+        {signupError && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+            <div className="text-sm text-red-800 dark:text-red-200">
+              {signupError instanceof Error ? signupError.message : 'Registration failed. Please try again.'}
+            </div>
+          </div>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -61,7 +89,65 @@ export default function RegisterForm() {
           }}
           className="flex flex-col gap-2"
         >
-          {/* Email Field - unchanged */}
+          {/* First Name Field */}
+          <form.Field
+            name="firstName"
+            validators={{
+              onChange: ({ value }) =>
+                !value ? 'First name is required' : undefined,
+            }}
+          >
+            {(field) => (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
+                  First Name*
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Enter your first name"
+                  name={field.name}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  className="mb-1"
+                />
+                {field.state.meta.isTouched && field.state.meta.errors && (
+                  <div className="text-xs text-red-500">{field.state.meta.errors}</div>
+                )}
+              </div>
+            )}
+          </form.Field>
+
+          {/* Last Name Field */}
+          <form.Field
+            name="lastName"
+            validators={{
+              onChange: ({ value }) =>
+                !value ? 'Last name is required' : undefined,
+            }}
+          >
+            {(field) => (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
+                  Last Name*
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Enter your last name"
+                  name={field.name}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  className="mb-1"
+                />
+                {field.state.meta.isTouched && field.state.meta.errors && (
+                  <div className="text-xs text-red-500">{field.state.meta.errors}</div>
+                )}
+              </div>
+            )}
+          </form.Field>
+
+          {/* Email Field */}
           <form.Field
             name="email"
             validators={{
@@ -94,7 +180,7 @@ export default function RegisterForm() {
             )}
           </form.Field>
 
-          {/* Password Field - unchanged */}
+          {/* Password Field */}
           <form.Field
             name="password"
             validators={{
@@ -128,9 +214,9 @@ export default function RegisterForm() {
             )}
           </form.Field>
 
-          {/* Phone Field - fixed */}
+          {/* Phone Field */}
           <form.Field
-            name="phone"
+            name="phoneNumber"
             validators={{
               onChange: ({ value }) =>
                 !value
@@ -170,7 +256,7 @@ export default function RegisterForm() {
             )}
           </form.Field>
 
-          {/* Terms Field - unchanged */}
+          {/* Terms Field */}
           <form.Field name="terms">
             {(field) => (
               <div className="flex items-center gap-2 my-1">
@@ -191,9 +277,9 @@ export default function RegisterForm() {
           <Button
             type="submit"
             className="w-full bg-indigo-400 hover:bg-indigo-500 text-white mt-2"
-            disabled={loading || !form.state.isValid || !form.state.values.terms}
+            disabled={loading || isSignupPending || !form.state.isValid || !form.state.values.terms}
           >
-            {loading ? "Creating..." : "Continue"}
+            {loading || isSignupPending ? "Creating..." : "Continue"}
           </Button>
         </form>
         <div className="flex items-center my-2">

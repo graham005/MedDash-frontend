@@ -2,26 +2,55 @@ import { useForm } from '@tanstack/react-form'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { useAuth } from '@/hooks/useAuth'
+import type { TSignIn } from '@/types/types'
+import { isAuthenticated } from '@/api/auth'
 
 export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  
+  // Use the auth hook
+  const { login, isLoginPending, loginError, userRole } = useAuth();
 
   const form = useForm({
     defaultValues: {
-      email: '',
-      password: '',
+      email: 'bob@example.com',
+      password: 'bob123',
     },
     onSubmit: async ({ value }) => {
       setLoading(true);
-      // Simulate login
-      await new Promise((r) => setTimeout(r, 1000));
-      setLoading(false);
-      alert(JSON.stringify(value, null, 2));
+      try {
+        // Use the login function from useAuth hook
+        await login(value as TSignIn);
+       
+      } catch (error) {
+        console.error('Login failed:', error);
+      } finally {
+        setLoading(false);
+      }
     },
   });
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const authenticated = await isAuthenticated();
+      if(authenticated && userRole) {
+        if (userRole === "admin") {
+          navigate({ to: '/dashboard/admin' });
+        } else if (userRole === "doctor") {
+          navigate({ to: '/dashboard/doctor' });
+        } else if (userRole === "pharmacist") {
+          navigate({ to: '/dashboard/pharmacist' });
+        } else {
+          navigate({ to: '/dashboard/patient' });
+        }
+      }
+    };
+    checkAuth();
+  }, [userRole, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f172a] to-[#1e3a8a] dark:from-slate-950 dark:to-slate-900 fixed inset-0 z-50">
@@ -46,11 +75,21 @@ export default function LoginForm() {
             <span className="inline-block bg-indigo-100 dark:bg-indigo-900 rounded-full p-1.5">
               <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c-.3 0-.5.1-.7.2l-7 3.1c-.5.2-.8.7-.8 1.2v4.6c0 5.2 3.3 10.1 8.1 11.7.2.1.5.1.7 0 4.8-1.6 8.1-6.5 8.1-11.7V6.5c0-.5-.3-1-.8-1.2l-7-3.1C12.5 2.1 12.3 2 12 2zm0 2.2l6 2.7v4.1c0 4.3-2.7 8.5-6 9.9-3.3-1.4-6-5.6-6-9.9V6.9l6-2.7z"/></svg>
             </span>
-            SecureAuth
+            MedDash
           </div>
           <div className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Welcome Back</div>
           <div className="text-slate-500 dark:text-slate-400 text-xs">Sign in to your account to continue</div>
         </div>
+
+        {/* Display login error if any */}
+        {loginError && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+            <div className="text-sm text-red-800 dark:text-red-200">
+              {loginError instanceof Error ? loginError.message : 'Login failed. Please try again.'}
+            </div>
+          </div>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -83,6 +122,7 @@ export default function LoginForm() {
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                   className="mb-1"
+                  disabled={loading || isLoginPending}
                 />
                 {field.state.meta.isTouched && field.state.meta.errors && (
                   <div className="text-xs text-red-500">{field.state.meta.errors}</div>
@@ -114,6 +154,7 @@ export default function LoginForm() {
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                   className="mb-1"
+                  disabled={loading || isLoginPending}
                 />
                 <div className="flex justify-end">
                   <a href="#" className="text-xs text-indigo-400 hover:underline">Forgot password?</a>
@@ -127,9 +168,9 @@ export default function LoginForm() {
           <Button
             type="submit"
             className="w-full bg-indigo-400 hover:bg-indigo-500 text-white mt-2"
-            disabled={loading || !form.state.isValid}
+            disabled={loading || isLoginPending || !form.state.isValid}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading || isLoginPending ? "Signing in..." : "Sign In"}
           </Button>
         </form>
         <div className="flex items-center my-2">
