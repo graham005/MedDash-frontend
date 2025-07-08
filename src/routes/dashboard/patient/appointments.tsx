@@ -1,3 +1,4 @@
+import AppointmentPage from '@/components/patient/Appointment'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/dashboard/patient/appointments')({
@@ -5,5 +6,5 @@ export const Route = createFileRoute('/dashboard/patient/appointments')({
 })
 
 function RouteComponent() {
-  return <div>Hello "/dashboard/patient/appointments"!</div>
+  return <div><AppointmentPage /></div>
 }
