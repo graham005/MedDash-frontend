@@ -1,109 +1,96 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  appointmentsApi,
+import {
+  cancelAppointment,
+  createAppointment,
+  getDoctorAppointmentById,
+  getDoctorAppointments,
+  getPatientAppointmentById,
+  getPatientAppointments,
+  updateAppointment,
+  updateAppointmentStatus,
   type UpdateAppointmentDto
 } from '@/api/appointments';
 
-export const useAppointments = () => {
-  const queryClient = useQueryClient();
-
-  // Get patient appointments
-  const {
-    data: patientAppointments,
-    isLoading: isLoadingPatientAppointments,
-    error: patientAppointmentsError,
-  } = useQuery({
+// Get patient appointments
+export function usePatientAppointments() {
+  return useQuery({
     queryKey: ['appointments', 'patient'],
-    queryFn: appointmentsApi.getPatientAppointments,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
-
-  // Get doctor appointments
-  const {
-    data: doctorAppointments,
-    isLoading: isLoadingDoctorAppointments,
-    error: doctorAppointmentsError,
-  } = useQuery({
-    queryKey: ['appointments', 'doctor'],
-    queryFn: appointmentsApi.getDoctorAppointments,
+    queryFn: getPatientAppointments,
     staleTime: 2 * 60 * 1000,
   });
+}
 
-  // Create appointment mutation
-  const createAppointmentMutation = useMutation({
-    mutationFn: appointmentsApi.createAppointment,
+// Get doctor appointments
+export function useDoctorAppointments() {
+  return useQuery({
+    queryKey: ['appointments', 'doctor'],
+    queryFn: getDoctorAppointments,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+// Create appointment mutation
+export function useCreateAppointment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createAppointment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['availability'] });
     },
   });
+}
 
-  // Update appointment mutation
-  const updateAppointmentMutation = useMutation({
+// Update appointment mutation
+export function useUpdateAppointment() {
+  const queryClient = useQueryClient();
+  return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateAppointmentDto }) =>
-      appointmentsApi.updateAppointment(id, data),
+      updateAppointment(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
     },
   });
+}
 
-  // Cancel appointment mutation
-  const cancelAppointmentMutation = useMutation({
-    mutationFn: appointmentsApi.cancelAppointment,
+// Cancel appointment mutation
+export function useCancelAppointment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: cancelAppointment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['availability'] });
     },
   });
+}
 
-  // Get single appointment
-  const useAppointmentById = (id: string) => {
-    return useQuery({
-      queryKey: ['appointments', id],
-      queryFn: () => appointmentsApi.getPatientAppointmentById(id),
-      enabled: !!id,
-    });
-  };
+// Get single patient appointment by ID
+export function useAppointmentById(id: string) {
+  return useQuery({
+    queryKey: ['appointments', id],
+    queryFn: () => getPatientAppointmentById(id),
+    enabled: !!id,
+  });
+}
 
-  // Get single doctor appointment
-  const useDoctorAppointmentById = (id: string) => {
-    return useQuery({
-      queryKey: ['appointments', 'doctor', id],
-      queryFn: () => appointmentsApi.getDoctorAppointmentById(id),
-      enabled: !!id,
-    });
-  };
+// Get single doctor appointment by ID
+export function useDoctorAppointmentById(id: string) {
+  return useQuery({
+    queryKey: ['appointments', 'doctor', id],
+    queryFn: () => getDoctorAppointmentById(id),
+    enabled: !!id,
+  });
+}
 
-  return {
-    // Data
-    patientAppointments,
-    doctorAppointments,
-    
-    // Loading states
-    isLoadingPatientAppointments,
-    isLoadingDoctorAppointments,
-    
-    // Errors
-    patientAppointmentsError,
-    doctorAppointmentsError,
-    
-    // Mutations
-    createAppointment: createAppointmentMutation.mutate,
-    updateAppointment: updateAppointmentMutation.mutate,
-    cancelAppointment: cancelAppointmentMutation.mutate,
-    
-    // Mutation states
-    isCreatingAppointment: createAppointmentMutation.isPending,
-    isUpdatingAppointment: updateAppointmentMutation.isPending,
-    isCancellingAppointment: cancelAppointmentMutation.isPending,
-    
-    // Mutation errors
-    createAppointmentError: createAppointmentMutation.error,
-    updateAppointmentError: updateAppointmentMutation.error,
-    cancelAppointmentError: cancelAppointmentMutation.error,
-    
-    // Utilities
-    useAppointmentById,
-    useDoctorAppointmentById,
-  };
-};
+// Update appointment status mutation
+export function useUpdateAppointmentStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'booked' | 'confirmed' | 'cancelled' | 'completed' }) =>
+      updateAppointmentStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    },
+  });
+}
