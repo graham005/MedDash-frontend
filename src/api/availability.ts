@@ -14,6 +14,7 @@ export interface UpdateAvailabilityDto {
 }
 
 export interface AvailabilitySlot {
+  isBooked: any;
   id: string;
   startTime: string;
   endTime: string;
@@ -26,6 +27,9 @@ export interface AvailabilitySlot {
       lastName: string;
       email: string;
     };
+    specialization: string;
+    qualification: string;
+    licenceNumber: string;
   };
 }
 
@@ -60,6 +64,19 @@ export const availabilityApi = {
         },
       });
       return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch availability slots');
+    }
+  },
+
+  getAllAvailabilitySlots: async (): Promise<AvailabilitySlot[]> => {
+    try{
+      const response = await axios.get(`${API_URL}/availability/allDoctors`, {
+         headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      })
+      return response.data
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to fetch availability slots');
     }

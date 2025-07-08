@@ -3,24 +3,28 @@ import { API_URL } from './url';
 
 export interface CreateAppointmentDto {
   doctorId: string;
+  patientId: string;
   startTime: string; // ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
   endTime: string; // ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)
-  status?: 'BOOKED' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  status?: 'booked' | 'confirmed' | 'cancelled' | 'completed';
   availabilitySlotId: string;
+  reasonForVisit: string;
 }
 
 export interface UpdateAppointmentDto {
   startTime?: string;
   endTime?: string;
-  status?: 'BOOKED' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
-  availabilitySlotId?: string;
+status?: 'booked' | 'confirmed' | 'cancelled' | 'completed';  
+availabilitySlotId?: string;
+reasonForVisit: string;
 }
 
 export interface Appointment {
   id: string;
   startTime: string;
   endTime: string;
-  status: 'BOOKED' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  status?: 'booked' | 'confirmed' | 'cancelled' | 'completed';
+  reasonForVisit: string;
   patient: {
     id: string;
     user: {
@@ -28,6 +32,7 @@ export interface Appointment {
       firstName: string;
       lastName: string;
       email: string;
+      phoneNumber: string;
     };
   };
   doctor: {
@@ -38,6 +43,9 @@ export interface Appointment {
       lastName: string;
       email: string;
     };
+    specialization: string;
+    qualification: string;
+    licenceNumber: string;
   };
   availabilitySlot: {
     id: string;
@@ -47,9 +55,9 @@ export interface Appointment {
   };
 }
 
-export const appointmentsApi = {
+
   // Patient APIs
-  createAppointment: async (appointmentData: CreateAppointmentDto): Promise<Appointment> => {
+  export const createAppointment = async (appointmentData: CreateAppointmentDto): Promise<Appointment> => {
     try {
       const response = await axios.post(`${API_URL}/appointments`, appointmentData, {
         headers: {
@@ -68,11 +76,11 @@ export const appointmentsApi = {
       }
       throw new Error('Failed to create appointment. Please try again.');
     }
-  },
+  }
 
-  getPatientAppointments: async (): Promise<Appointment[]> => {
+  export const getPatientAppointments = async (): Promise<Appointment[]> => {
     try {
-      const response = await axios.get(`${API_URL}/appointments`, {
+      const response = await axios.get(`${API_URL}/appointments/patient`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
         },
@@ -85,9 +93,9 @@ export const appointmentsApi = {
       }
       throw new Error('Failed to fetch appointments.');
     }
-  },
+  }
 
-  getPatientAppointmentById: async (id: string): Promise<Appointment> => {
+  export const getPatientAppointmentById = async (id: string): Promise<Appointment> => {
     try {
       const response = await axios.get(`${API_URL}/appointments/${id}`, {
         headers: {
@@ -102,9 +110,33 @@ export const appointmentsApi = {
       }
       throw new Error('Failed to fetch appointment.');
     }
-  },
+  }
 
-  updateAppointment: async (id: string, updateData: UpdateAppointmentDto): Promise<Appointment> => {
+  export const updateAppointmentStatus = async (id: string, status: 'booked' | 'confirmed' | 'cancelled' | 'completed'): Promise<Appointment> => {
+    try {
+      const response = await axios.patch(`${API_URL}/appointments/doctor/${id}/status`, 
+        { status }, 
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+          },
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error updating appointment status:', error);
+      if (error.response?.status === 400) {
+        throw new Error('Invalid status value.');
+      } else if (error.response?.status === 404) {
+        throw new Error('Appointment not found or you do not have permission to update it.');
+      } else if (error.response?.status === 401) {
+        throw new Error('Authentication required. Please login.');
+      }
+      throw new Error('Failed to update appointment status.');
+    }
+  }
+
+  export const updateAppointment = async (id: string, updateData: UpdateAppointmentDto): Promise<Appointment> => {
     try {
       const response = await axios.patch(`${API_URL}/appointments/${id}`, updateData, {
         headers: {
@@ -121,9 +153,9 @@ export const appointmentsApi = {
       }
       throw new Error('Failed to update appointment.');
     }
-  },
+  }
 
-  cancelAppointment: async (id: string): Promise<Appointment> => {
+  export const cancelAppointment = async (id: string): Promise<Appointment> => {
     try {
       const response = await axios.delete(`${API_URL}/appointments/${id}`, {
         headers: {
@@ -138,10 +170,10 @@ export const appointmentsApi = {
       }
       throw new Error('Failed to cancel appointment.');
     }
-  },
+  }
 
   // Doctor APIs
-  getDoctorAppointments: async (): Promise<Appointment[]> => {
+  export const getDoctorAppointments = async (): Promise<Appointment[]> => {
     try {
       const response = await axios.get(`${API_URL}/appointments/doctor`, {
         headers: {
@@ -156,9 +188,9 @@ export const appointmentsApi = {
       }
       throw new Error('Failed to fetch doctor appointments.');
     }
-  },
+  }
 
-  getDoctorAppointmentById: async (id: string): Promise<Appointment> => {
+  export const getDoctorAppointmentById = async (id: string): Promise<Appointment> => {
     try {
       const response = await axios.get(`${API_URL}/appointments/doctor/${id}`, {
         headers: {
@@ -173,5 +205,4 @@ export const appointmentsApi = {
       }
       throw new Error('Failed to fetch doctor appointment.');
     }
-  },
-};
+  }
