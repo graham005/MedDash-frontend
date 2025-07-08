@@ -2,7 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isBefore, startOfDay, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Clock, X } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAvailability } from '@/hooks/useAvailability';
+import { 
+  useDoctorAvailabilitySlots,
+  useCreateAvailabilitySlot,
+  useDeleteAvailabilitySlot
+} from '@/hooks/useAvailability'; // <-- Import hooks directly
 import { availabilityApi } from '@/api/availability';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,29 +43,10 @@ export default function AvailabilityPlanner({ className }: AvailabilityPlannerPr
 
   const queryClient = useQueryClient();
 
-  const {
-    availabilitySlots,
-    isLoadingAvailability,
-    isCreatingSlot,
-    isDeletingSlot,
-    createSlotError,
-    availabilityError
-  } = useAvailability();
-
-  // Get mutation objects for promise-based handling
-  const { mutateAsync: createSlotAsync } = useMutation({
-    mutationFn: availabilityApi.createAvailabilitySlot,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['availability'] });
-    },
-  });
-
-  const { mutateAsync: deleteSlotAsync } = useMutation({
-    mutationFn: availabilityApi.deleteAvailabilitySlot,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['availability'] });
-    },
-  });
+  // Use the hooks directly
+  const { data: availabilitySlots = [], isLoading: isLoadingAvailability, error: availabilityError } = useDoctorAvailabilitySlots();
+  const { mutateAsync: createSlotAsync, isPending: isCreatingSlot, error: createSlotError } = useCreateAvailabilitySlot();
+  const { mutateAsync: deleteSlotAsync, isPending: isDeletingSlot } = useDeleteAvailabilitySlot();
 
   const today = startOfDay(new Date());
   const monthStart = startOfMonth(currentDate);
@@ -158,7 +143,6 @@ export default function AvailabilityPlanner({ className }: AvailabilityPlannerPr
           type: slot.type
         };
         
-        console.log('Sending slot data:', slotData); // Debug log
         
         // Use mutateAsync for promise-based handling
         await createSlotAsync(slotData);

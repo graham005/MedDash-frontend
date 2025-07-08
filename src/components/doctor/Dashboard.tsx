@@ -1,18 +1,18 @@
 import { useMemo } from "react";
 import { BellIcon } from "@heroicons/react/24/outline";
 import { ModeToggle } from "../mode-toggle";
-import { useAuth } from "@/hooks/useAuth";
-import { useAppointments } from "@/hooks/useAppointments";
+import { useCurrentUser } from "@/hooks/useAuth";
+import { useDoctorAppointments } from "@/hooks/useAppointments";
 
 export default function DoctorDashboard() {
   // Get doctor info
-  const { currentUser, isLoading: isLoadingUser } = useAuth();
+  const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
   // Get all appointments for the logged-in doctor
   const {
-    doctorAppointments,
-    isLoadingDoctorAppointments,
-    doctorAppointmentsError,
-  } = useAppointments();
+    data: doctorAppointments,
+    isLoading: isLoadingDoctorAppointments,
+    error: doctorAppointmentsError,
+  } = useDoctorAppointments();
 
   // Filter today's appointments
   const today = new Date();
@@ -101,16 +101,16 @@ export default function DoctorDashboard() {
                     src={`https://randomuser.me/api/portraits/${
                       idx % 2 === 0 ? "women" : "men"
                     }/${44 + idx}.jpg`}
-                    alt={appt.patient.user.firstName}
+                    alt={appt.patient?.user?.firstName ?? ''}
                     className="w-12 h-12 rounded-full"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-white">
-                        {appt.patient.user.firstName} {appt.patient.user.lastName}
+                        {appt.patient?.user?.firstName ?? 'Unknown'} {appt.patient?.user?.lastName ?? ''}
                       </span>
                       <span className="text-xs text-slate-300">
-                        ID: #{appt.patient.id.slice(-5)}
+                        ID: #{appt.patient?.id?.slice(-5) ?? '-----'}
                       </span>
                     </div>
                     <div className="text-slate-300 text-xs">
@@ -134,14 +134,14 @@ export default function DoctorDashboard() {
                     className={`px-2 py-1 text-xs font-bold rounded ${
                       appt.availabilitySlot?.type === "EMERGENCY"
                         ? "bg-indigo-500 text-white"
-                        : appt.status === "CONFIRMED"
+                        : appt.status === "confirmed"
                         ? "bg-blue-400 text-white"
                         : "bg-slate-400 text-white"
                     }`}
                   >
                     {appt.availabilitySlot?.type === "EMERGENCY"
                       ? "URGENT"
-                      : appt.status === "CONFIRMED"
+                      : appt.status === "confirmed"
                       ? "HIGH"
                       : "NORMAL"}
                   </span>
@@ -218,13 +218,12 @@ export default function DoctorDashboard() {
                       <div className="font-semibold text-slate-900 dark:text-white">
                         {appt.availabilitySlot?.type === "EMERGENCY"
                           ? "Current: Emergency Consult"
-                          : appt.status === "CONFIRMED"
+                          : appt.status === "confirmed"
                           ? "Confirmed Consultation"
                           : "Consultation"}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-300">
-                        Patient: {appt.patient.user.firstName}{" "}
-                        {appt.patient.user.lastName}
+                        Patient: {appt.patient?.user?.firstName ?? 'Unknown'} {appt.patient?.user?.lastName ?? ''}
                       </div>
                     </div>
                   </div>
