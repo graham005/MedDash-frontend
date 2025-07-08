@@ -4,13 +4,13 @@ import { useNavigate } from '@tanstack/react-router';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
-import { useAuth } from '@/hooks/useAuth'; // <-- Import the hook
+import { useSignup } from '@/hooks/useAuth';
 import type { TSignUp } from '@/types/types';
 
 export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signup, isSignupPending, signupError } = useAuth(); // <-- Use the hook
+  const { mutateAsync: signup, isPending: isSignupPending, error: signupError } = useSignup();
 
   const form = useForm({
     defaultValues: {

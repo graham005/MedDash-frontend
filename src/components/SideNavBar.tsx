@@ -10,7 +10,7 @@ import {
     BuildingStorefrontIcon,
     ArrowLeftEndOnRectangleIcon,
 } from "@heroicons/react/24/solid";
-import { useAuth } from '@/hooks/useAuth';
+import { useLogout } from '@/hooks/useAuth';
 
 const NAV_CONFIG = {
     admin: [
@@ -49,7 +49,7 @@ export default function SideNavBar({ role }: SideNavBarProps) {
     if (!role) return null;
     const navItems = NAV_CONFIG[role];
     const { location } = useRouterState();
-    const { logout, isLogoutPending } = useAuth();
+    const { mutate: logout, isPending: isLogoutPending } = useLogout();
 
     return (
         <aside className="fixed left-0 top-0 bg-[#050a2f] text-white w-64 h-screen px-6 py-8 flex flex-col z-40 overflow-y-auto

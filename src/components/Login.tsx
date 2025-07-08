@@ -4,28 +4,27 @@ import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { useAuth } from '@/hooks/useAuth'
+import { useLogin, useUserRole } from '@/hooks/useAuth' // <-- FIXED
 import type { TSignIn } from '@/types/types'
 import { isAuthenticated } from '@/api/auth'
 
 export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  
-  // Use the auth hook
-  const { login, isLoginPending, loginError, userRole } = useAuth();
+
+  // Use the login mutation hook
+  const { mutateAsync: login, isPending: isLoginPending, error: loginError } = useLogin(); // <-- FIXED
+  const userRole = useUserRole(); // <-- FIXED
 
   const form = useForm({
     defaultValues: {
-      email: 'bob@example.com',
-      password: 'bob123',
+      email: '',
+      password: '',
     },
     onSubmit: async ({ value }) => {
       setLoading(true);
       try {
-        // Use the login function from useAuth hook
         await login(value as TSignIn);
-       
       } catch (error) {
         console.error('Login failed:', error);
       } finally {

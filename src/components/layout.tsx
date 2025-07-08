@@ -1,10 +1,10 @@
 import { Outlet } from "@tanstack/react-router"
 import SideNavBar, { type Role } from "./SideNavBar"
-import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useAuth";
 
 function DashboardLayout() {
-  const { userRole } = useAuth();
-  const role: Role = (userRole as Role)
+  const userRole = useUserRole();
+  const role: Role = userRole as Role;
   return (
     <div className="flex">
       <SideNavBar role={role} />
