@@ -9,8 +9,10 @@ import {
     HomeIcon,
     BuildingStorefrontIcon,
     ArrowLeftEndOnRectangleIcon,
+    TruckIcon,
 } from "@heroicons/react/24/solid";
 import { useLogout } from '@/hooks/useAuth';
+import { ModeToggle } from './mode-toggle';
 
 const NAV_CONFIG = {
     admin: [
@@ -22,6 +24,7 @@ const NAV_CONFIG = {
         { label: "Home", icon: HomeIcon, to: "/dashboard/patient" },
         { label: "Appointments", icon: CalendarDaysIcon, to: "/dashboard/patient/appointments" },
         { label: "Prescriptions", icon: ClipboardDocumentIcon, to: "/dashboard/patient/prescriptions" },
+        { label: "Orders", icon: TruckIcon, to: "/dashboard/patient/orders" },
         { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/patient/settings" },
     ],
     doctor: [
@@ -32,9 +35,9 @@ const NAV_CONFIG = {
         { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/doctor/settings" },
     ],
     pharmacist: [
-        { label: "Dashboard", icon: ChartBarIcon, to: "/dashboard/pharmacist" },
-        { label: "Prescriptions", icon: ClipboardDocumentIcon, to: "/dashboard/pharmacist/prescriptions" },
+        { label: "Home", icon: HomeIcon, to: "/dashboard/pharmacist" },
         { label: "Inventory", icon: BuildingStorefrontIcon, to: "/dashboard/pharmacist/inventory" },
+        { label: "Orders", icon: ClipboardDocumentIcon, to: "/dashboard/pharmacist/orders" },
         { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/pharmacist/settings" },
     ],
 };
@@ -54,10 +57,15 @@ export default function SideNavBar({ role }: SideNavBarProps) {
     return (
         <aside className="fixed left-0 top-0 bg-[#050a2f] text-white w-64 h-screen px-6 py-8 flex flex-col z-40 overflow-y-auto
             dark:bg-slate-900 dark:text-slate-100 transition-colors">
-            <div className="mb-8">
-                <div className="text-2xl font-bold text-indigo-200 dark:text-indigo-400">MedDash</div>
-                <div className="text-sm text-indigo-100 opacity-70 dark:text-indigo-200 dark:opacity-80">
-                    {role.charAt(0).toUpperCase() + role.slice(1)} Portal
+            <div className='flex flex-row justify-between'>
+                <div className="mb-8">
+                    <div className="text-2xl font-bold text-indigo-200 dark:text-indigo-400">MedDash</div>
+                    <div className="text-sm text-indigo-100 opacity-70 dark:text-indigo-200 dark:opacity-80">
+                        {role.charAt(0).toUpperCase() + role.slice(1)} Portal
+                    </div>
+                </div>
+                <div className='w-2 h-2 m-4 mt-2 '>
+                    <ModeToggle />
                 </div>
             </div>
             <nav className="flex flex-col gap-2">
