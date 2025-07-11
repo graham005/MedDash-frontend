@@ -4,6 +4,7 @@ import { API_URL } from './url';
 export interface CreatePharmacyOrderDto {
   prescriptionId: string;
   status?: OrderStatus;
+  totalAmount: number;
 }
 
 export interface UpdatePharmacyOrderDto {
@@ -12,29 +13,19 @@ export interface UpdatePharmacyOrderDto {
 }
 
 export enum OrderStatus {
-  PENDING = 'PENDING',
-  CONFIRMED = 'CONFIRMED',
-  PROCESSING = 'PROCESSING',
-  READY = 'READY',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED'
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
+  PROCESSING = 'processing',
+  READY = 'ready',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled'
 }
 
 export interface PharmacyOrder {
   id: string;
   status: OrderStatus;
   createdAt: string;
-  pharmacist: {
-    id: string;
-    user: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
-    };
-    pharmacyName: string;
-    licenceNumber: string;
-  };
+  totalAmount: number;
   prescription: {
     id: string;
     name: string;
@@ -62,6 +53,15 @@ export interface PharmacyOrder {
         lastName: string;
         email: string;
       };
+    };
+  };
+  patient: {
+    id: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
     };
   };
 }

@@ -7,6 +7,7 @@ export interface CreateMedicineDto {
   price: number;
   stock: number;
   manufacturer: string;
+  expirationDate: Date
 }
 
 export interface UpdateMedicineDto {
@@ -15,6 +16,7 @@ export interface UpdateMedicineDto {
   price?: number;
   stock?: number;
   manufacturer?: string;
+  expirationDate?: Date
 }
 
 export interface Medicine {
@@ -24,6 +26,7 @@ export interface Medicine {
   price: number;
   stock: number;
   manufacturer: string;
+  expirationDate: Date
   addedBy: {
     id: string;
     user: {

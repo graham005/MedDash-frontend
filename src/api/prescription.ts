@@ -5,6 +5,7 @@ export interface CreatePrescriptionDto {
   name: string;
   patientId: string;
   date: string; // ISO 8601 format
+  validityDate: string;
   medications: MedicationDto[];
 }
 
@@ -12,6 +13,7 @@ export interface UpdatePrescriptionDto {
   name?: string;
   patientId?: string;
   date?: string;
+  validityDate?: string;
   medications?: MedicationDto[];
 }
 
@@ -20,17 +22,20 @@ export interface MedicationDto {
   dosage: string;
   frequency: string;
   duration: string;
+  quantity: number
 }
 
 export interface Prescription {
   id: string;
   name: string;
   date: string;
+  validityDate: string
   medications: Array<{
     medicineId: string;
     dosage: string;
     frequency: string;
     duration: string;
+    quantity: number;
   }>;
   prescribedBy: {
     id: string;
