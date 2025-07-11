@@ -1,3 +1,4 @@
+import PharmacistHomePage from '@/components/pharmacist/HomePage'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/dashboard/pharmacist/')({
@@ -5,5 +6,5 @@ export const Route = createFileRoute('/dashboard/pharmacist/')({
 })
 
 function RouteComponent() {
-  return <div>Hello "/dashboard/pharmacist/"!</div>
+  return <div><PharmacistHomePage /></div>
 }
