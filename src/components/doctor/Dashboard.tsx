@@ -63,7 +63,6 @@ export default function DoctorDashboard() {
             {/* Notification dot */}
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
           </button>
-          <ModeToggle />
           <img
             src="https://randomuser.me/api/portraits/men/32.jpg"
             alt="Profile"
@@ -95,7 +94,7 @@ export default function DoctorDashboard() {
               {patientQueue.map((appt, idx) => (
                 <div
                   key={appt.patient.id}
-                  className="flex items-center gap-4 bg-slate-900 dark:bg-slate-950 rounded-lg p-4"
+                  className="flex items-center gap-4 bg-indigo-400 dark:bg-slate-950 rounded-lg p-4"
                 >
                   <img
                     src={`https://randomuser.me/api/portraits/${
@@ -109,16 +108,16 @@ export default function DoctorDashboard() {
                       <span className="font-semibold text-white">
                         {appt.patient?.user?.firstName ?? 'Unknown'} {appt.patient?.user?.lastName ?? ''}
                       </span>
-                      <span className="text-xs text-slate-300">
+                      <span className="text-xs text-slate-100">
                         ID: #{appt.patient?.id?.slice(-5) ?? '-----'}
                       </span>
                     </div>
-                    <div className="text-slate-300 text-xs">
+                    <div className="text-slate-100 text-xs">
                       {appt.availabilitySlot?.type === "EMERGENCY"
                         ? "Emergency consult"
                         : "Consultation"}
                     </div>
-                    <div className="text-slate-400 text-xs mt-1">
+                    <div className="text-slate-200 text-xs mt-1">
                       {/* Wait time: difference between now and appointment start */}
                       Wait time:{" "}
                       {Math.max(
@@ -145,7 +144,7 @@ export default function DoctorDashboard() {
                       ? "HIGH"
                       : "NORMAL"}
                   </span>
-                  <span className="text-xs text-slate-400 ml-2">
+                  <span className="text-xs text-slate-200 ml-2">
                     Room {201 + idx}
                   </span>
                 </div>
