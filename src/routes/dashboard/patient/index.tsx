@@ -1,3 +1,4 @@
+import PatientHomePage from '@/components/patient/HomePage'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/dashboard/patient/')({
@@ -5,5 +6,5 @@ export const Route = createFileRoute('/dashboard/patient/')({
 })
 
 function RouteComponent() {
-  return <div>Hello "/dashboard/patient/"!</div>
+  return <div><PatientHomePage /></div>
 }
