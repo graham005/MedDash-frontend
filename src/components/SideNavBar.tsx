@@ -32,7 +32,7 @@ const NAV_CONFIG = {
         { label: "Availability", icon: UserGroupIcon, to: "/dashboard/doctor/availability" },
         { label: "Appointments", icon: CalendarDaysIcon, to: "/dashboard/doctor/appointments" },
         { label: "Prescriptions", icon: ClipboardDocumentIcon, to: "/dashboard/doctor/prescriptions" },
-        { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/doctor/settings" },
+        { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/doctor/profile" },
     ],
     pharmacist: [
         { label: "Home", icon: HomeIcon, to: "/dashboard/pharmacist" },
