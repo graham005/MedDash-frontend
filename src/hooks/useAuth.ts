@@ -15,9 +15,12 @@ import {
   isAuthenticated,
   getUserRole,
   clearAuthTokens,
-  getUserIdFromToken
+  getUserIdFromToken,
+  updateProfile,
+  createAdminProfile,
+  getProfile,
 } from '@/api/auth';
-import type { TSignIn, TSignUp, TDoctorProfile, TPatientProfile, TPharmacistProfile } from '@/types/types';
+import type { TDoctorProfile, TPatientProfile, TPharmacistProfile } from '@/types/types';
 
 // Get current user
 export function useCurrentUser() {
@@ -41,7 +44,6 @@ export function useCurrentUser() {
 // Login mutation
 export function useLogin() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   return useMutation({
     mutationFn: loginUser,
     onSuccess: (data) => {
@@ -139,6 +141,84 @@ export function useResetPassword() {
   return useMutation({
     mutationFn: ({ token, newPassword }: { token: string; newPassword: string }) =>
       resetPassword(token, newPassword),
+  });
+}
+
+// Update patient profile mutation
+export function useUpdatePatientProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, profileData }: { id: string; profileData: any }) =>
+      updateProfile('patient', id, profileData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+  });
+}
+
+// Update doctor profile mutation
+export function useUpdateDoctorProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, profileData }: { id: string; profileData: any }) =>
+      updateProfile('doctor', id, profileData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+  });
+}
+
+// Update pharmacist profile mutation
+export function useUpdatePharmacistProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, profileData }: { id: string; profileData: any }) =>
+      updateProfile('pharmacist', id, profileData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+  });
+}
+
+// Create admin profile mutation
+export function useCreateAdminProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (profileData: { department: string }) => createAdminProfile(profileData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+  });
+}
+
+// Update admin profile mutation
+export function useUpdateAdminProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, profileData }: { id: string; profileData: any }) =>
+      updateProfile('admin', id, profileData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+  });
+}
+
+// Profile query
+export function useProfile() {
+  const navigate = useNavigate();
+  return useQuery({
+    queryKey: ['profile'],
+    queryFn: getProfile,
+    enabled: isAuthenticated() && !!getUserIdFromToken(),
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status === 401) {
+        clearAuthTokens();
+        navigate({ to: '/login' });
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 }
 
