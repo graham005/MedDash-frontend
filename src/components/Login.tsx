@@ -4,7 +4,7 @@ import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { useLogin, useUserRole } from '@/hooks/useAuth' // <-- FIXED
+import { useLogin, useUserRole, useCurrentUser } from '@/hooks/useAuth' // <-- FIXED
 import type { TSignIn } from '@/types/types'
 import { isAuthenticated } from '@/api/auth'
 
@@ -12,9 +12,9 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Use the login mutation hook
-  const { mutateAsync: login, isPending: isLoginPending, error: loginError } = useLogin(); // <-- FIXED
-  const userRole = useUserRole(); // <-- FIXED
+  const { mutateAsync: login, isPending: isLoginPending, error: loginError } = useLogin();
+  const userRole = useUserRole();
+  const { data: currentUser, isLoading } = useCurrentUser();
 
   const form = useForm({
     defaultValues: {
@@ -34,22 +34,44 @@ export default function LoginForm() {
   });
 
   useEffect(() => {
+    if (isLoading) return; // Wait for user data to load before redirecting
+
     const checkAuth = async () => {
       const authenticated = await isAuthenticated();
-      if(authenticated && userRole) {
-        if (userRole === "admin") {
-          navigate({ to: '/dashboard/admin' });
-        } else if (userRole === "doctor") {
+      if (authenticated && userRole && currentUser) {
+        if (userRole === "doctor") {
+          if (!currentUser.profile) {
+            navigate({ to: '/dashboard/doctor/profile/create' });
+            return;
+          }
           navigate({ to: '/dashboard/doctor' });
-        } else if (userRole === "pharmacist") {
-          navigate({ to: '/dashboard/pharmacist' });
-        } else {
+        } else if (userRole === "patient") {
+          if (!currentUser.profile) {
+            navigate({ to: '/dashboard/patient/profile/create' });
+            return;
+          }
           navigate({ to: '/dashboard/patient' });
+        } else if (userRole === "pharmacist") {
+          if (!currentUser.profile) {
+            navigate({ to: '/dashboard/pharmacist/profile/create' });
+            return;
+          }
+          navigate({ to: '/dashboard/pharmacist' });
+        } else if (userRole === "admin") {
+          navigate({ to: '/dashboard/admin' });
         }
       }
     };
     checkAuth();
-  }, [userRole, navigate]);
+  }, [userRole, currentUser, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f172a] to-[#1e3a8a] dark:from-slate-950 dark:to-slate-900 fixed inset-0 z-50">
+        <div className="text-white dark:text-slate-200 text-lg font-semibold">Loading user...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f172a] to-[#1e3a8a] dark:from-slate-950 dark:to-slate-900 fixed inset-0 z-50">

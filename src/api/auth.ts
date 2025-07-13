@@ -17,6 +17,7 @@ interface SignUpResponse {
   userRole: string;
 }
 
+
 interface UserResponse {
   id: string;
   email: string;
@@ -24,6 +25,7 @@ interface UserResponse {
   lastName: string;
   phoneNumber?: string;
   userRole: string;
+  profile?: TPatientProfile | TDoctorProfile | TPharmacistProfile;
 }
 
 // Profile response interfaces matching backend
@@ -84,7 +86,7 @@ authApi.interceptors.response.use(
         // Get user ID from token or storage
         const token = localStorage.getItem('accessToken');
         let userId = null;
-        
+
         if (token) {
           try {
             const payload = JSON.parse(atob(token.split('.')[1]));
@@ -101,10 +103,10 @@ authApi.interceptors.response.use(
               'Authorization': `Bearer ${refreshToken}`
             }
           });
-          
+
           const { accessToken } = response.data;
           localStorage.setItem('accessToken', accessToken);
-          
+
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return authApi(originalRequest);
@@ -372,12 +374,12 @@ export const resetPassword = async (token: string, newPassword: string): Promise
 export const isAuthenticated = (): boolean => {
   const token = localStorage.getItem('accessToken');
   if (!token) return false;
-  
+
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     const isExpired = payload.exp * 1000 < Date.now();
     const hasUserId = !!(payload.sub || payload.userId || payload.id);
-    
+
     return !isExpired && hasUserId;
   } catch {
     return false;
@@ -407,7 +409,7 @@ export const getUserIdFromToken = (token?: string): string | null => {
   try {
     const accessToken = token || localStorage.getItem('accessToken');
     if (!accessToken) return null;
-    
+
     // Decode JWT payload (base64 decode the middle part)
     const base64Url = accessToken.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -417,11 +419,91 @@ export const getUserIdFromToken = (token?: string): string | null => {
         .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
         .join('')
     );
-    
+
     const payload = JSON.parse(jsonPayload);
     return payload.sub || payload.userId || payload.id || null; // Common JWT user ID fields
   } catch (error) {
     console.error('Error decoding token:', error);
     return null;
+  }
+};
+
+// Update Profile (for patient, doctor, pharmacist, admin)
+export const updateProfile = async (
+  role: 'patient' | 'doctor' | 'pharmacist' | 'admin',
+  id: string,
+  profileData: any // Use the correct DTO type for each role if available
+): Promise<any> => {
+  try {
+    let endpoint = '';
+    switch (role) {
+      case 'patient':
+        endpoint = `/auth/patient/profile/${id}`;
+        break;
+      case 'doctor':
+        endpoint = `/auth/doctor/profile/${id}`;
+        break;
+      case 'pharmacist':
+        endpoint = `/auth/pharmacist/profile/${id}`;
+        break;
+      case 'admin':
+        endpoint = `/auth/admin/profile/${id}`;
+        break;
+      default:
+        throw new Error('Invalid role');
+    }
+    const response: AxiosResponse<any> = await axios.patch(
+      `${API_URL}${endpoint}`,
+      profileData,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || 'Profile update failed.');
+  }
+};
+
+// Create Admin Profile
+export const createAdminProfile = async (profileData: { department: string }): Promise<any> => {
+  try {
+    const response: AxiosResponse<any> = await axios.post(
+      `${API_URL}/auth/admin/profile`,
+      profileData,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 400) {
+      throw new Error('Invalid profile data. Please check your information.');
+    } else if (error.response?.status === 409) {
+      throw new Error('Admin profile already exists for this user.');
+    } else if (error.response?.status >= 500) {
+      throw new Error('Server error. Please try again later.');
+    }
+    throw new Error('Creating admin profile failed. Please try again.');
+  }
+};
+
+export const getProfile = async (): Promise<any> => {
+  try {
+    const response: AxiosResponse<any> = await axios.get(`${API_URL}/auth/profile`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 401) {
+      throw new Error('Authentication required. Please login.');
+    }
+    throw new Error('Failed to get profile information.');
   }
 };
