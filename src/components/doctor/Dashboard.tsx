@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { BellIcon } from "@heroicons/react/24/outline";
-import { ModeToggle } from "../mode-toggle";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { useDoctorAppointments } from "@/hooks/useAppointments";
 
@@ -72,7 +71,7 @@ export default function DoctorDashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="p-4 md:p-8 flex flex-col gap-6 w-full">
+      <main className="p-4 md:p-8 flex flex-col  gap-6 w-full">
         {/* Top Section: Patient Queue & Quick Actions */}
         <div className="flex flex-col lg:flex-row gap-6 w-full">
           {/* Patient Queue */}
@@ -172,7 +171,7 @@ export default function DoctorDashboard() {
         </div>
 
         {/* Today's Appointments */}
-        <section className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 w-full">
+        <section className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 w-full min-h-100">
           <h2 className="font-semibold text-lg text-slate-900 dark:text-white mb-4">
             Today's Appointments
           </h2>
@@ -185,7 +184,7 @@ export default function DoctorDashboard() {
               Error loading appointments.
             </div>
           ) : todayAppointments.length === 0 ? (
-            <div className="text-slate-400 text-center py-8">
+            <div className="text-slate-400 text-center py-8 flex justify-center pt-20">
               No appointments scheduled for today.
             </div>
           ) : (
