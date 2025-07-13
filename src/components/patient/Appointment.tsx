@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   usePatientAppointments, 
   useCancelAppointment 
@@ -8,18 +8,13 @@ import { useCurrentUser } from '@/hooks/useAuth';
 import { useNavigate } from '@tanstack/react-router';
 import { 
   CalendarIcon, 
-  ClockIcon, 
   VideoCameraIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
-  XMarkIcon,
   EyeIcon,
   PlusIcon,
-  MagnifyingGlassIcon,
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
-import type { CreateAppointmentDto } from '@/api/appointments';
 
 interface Doctor {
   id: string;
@@ -38,7 +33,6 @@ export default function AppointmentPage() {
   const {
     data: patientAppointments,
     isLoading: isLoadingPatientAppointments,
-    error: patientAppointmentsError,
   } = usePatientAppointments();
 
   const {
@@ -49,7 +43,6 @@ export default function AppointmentPage() {
   const {
     data: availabilitySlots,
     isLoading: isLoadingAvailability,
-    error: availabilityError,
   } = useAllAvailabilitySlots();
 
   const { data: currentUser } = useCurrentUser();

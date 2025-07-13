@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { 
-  CalendarIcon, 
-  ClockIcon, 
+import {
+  CalendarIcon,
+  ClockIcon,
   DocumentTextIcon,
   TruckIcon,
   UserIcon,
@@ -25,7 +25,7 @@ import type { Prescription } from '@/api/prescription';
 export default function PatientHomePage() {
   const navigate = useNavigate();
   const { data: currentUser } = useCurrentUser();
-  
+
   const { data: appointments = [] } = usePatientAppointments();
   const { data: prescriptions = [] } = usePrescriptions(); // <-- FIXED
   const { data: allOrders = [] } = usePharmacyOrders();
@@ -34,7 +34,7 @@ export default function PatientHomePage() {
   // Filter orders for current patient
   const orders = useMemo(() => {
     if (!currentUser || !allOrders) return [];
-    return allOrders.filter(order => 
+    return allOrders.filter(order =>
       order.prescription?.patient?.user?.id === currentUser.id
     );
   }, [allOrders, currentUser]);
@@ -67,11 +67,11 @@ export default function PatientHomePage() {
     const now = new Date();
     const thisMonth = appointments.filter(apt => {
       const aptDate = new Date(apt.startTime);
-      return aptDate.getMonth() === now.getMonth() && 
-             aptDate.getFullYear() === now.getFullYear();
+      return aptDate.getMonth() === now.getMonth() &&
+        aptDate.getFullYear() === now.getFullYear();
     }).length;
 
-    const pendingOrders = orders.filter(order => 
+    const pendingOrders = orders.filter(order =>
       ['PENDING', 'CONFIRMED', 'PROCESSING'].includes(order.status)
     ).length;
 
@@ -94,7 +94,7 @@ export default function PatientHomePage() {
     const notifs = [];
 
     // Check for appointments today
-    const todayAppointments = upcomingAppointments.filter(apt => 
+    const todayAppointments = upcomingAppointments.filter(apt =>
       isToday(new Date(apt.startTime))
     );
     if (todayAppointments.length > 0) {
@@ -106,7 +106,7 @@ export default function PatientHomePage() {
     }
 
     // Check for appointments tomorrow
-    const tomorrowAppointments = upcomingAppointments.filter(apt => 
+    const tomorrowAppointments = upcomingAppointments.filter(apt =>
       isTomorrow(new Date(apt.startTime))
     );
     if (tomorrowAppointments.length > 0) {
@@ -122,7 +122,7 @@ export default function PatientHomePage() {
 
   const getAppointmentStatus = (appointment: any) => {
     const appointmentDate = new Date(appointment.startTime);
-    
+
     if (appointment.status === 'cancelled') {
       return { label: 'Cancelled', color: 'bg-red-100 text-red-800' };
     } else if (isToday(appointmentDate)) {
@@ -162,9 +162,9 @@ export default function PatientHomePage() {
                   )}
                   <span className="text-sm font-medium">{notif.message}</span>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="text-white hover:bg-blue-700"
                   onClick={notif.action}
                 >
@@ -182,7 +182,7 @@ export default function PatientHomePage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Welcome back, {currentUser?.firstName}!
+                Welcome back, {currentUser?.profile?.user?.firstName}!
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-2">
                 Here's an overview of your health journey
@@ -288,8 +288,8 @@ export default function PatientHomePage() {
                   <CalendarIcon className="w-5 h-5" />
                   Upcoming Appointments
                 </CardTitle>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
                   onClick={() => navigate({ to: '/dashboard/patient/appointments' })}
                 >
@@ -305,7 +305,7 @@ export default function PatientHomePage() {
                   <p className="text-gray-500 dark:text-gray-400 mb-4">
                     No upcoming appointments
                   </p>
-                  <Button 
+                  <Button
                     onClick={() => navigate({ to: '/dashboard/patient/book-appointment' })}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
@@ -318,7 +318,7 @@ export default function PatientHomePage() {
                   {upcomingAppointments.map((appointment) => {
                     const status = getAppointmentStatus(appointment);
                     const appointmentDate = new Date(appointment.startTime);
-                    
+
                     return (
                       <div key={appointment.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-2">
@@ -365,8 +365,8 @@ export default function PatientHomePage() {
                   <DocumentTextIcon className="w-5 h-5" />
                   Recent Prescriptions
                 </CardTitle>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
                   onClick={() => navigate({ to: '/dashboard/patient/prescriptions' })}
                 >
@@ -418,8 +418,8 @@ export default function PatientHomePage() {
                   <TruckIcon className="w-5 h-5" />
                   Recent Orders
                 </CardTitle>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
                   onClick={() => navigate({ to: '/dashboard/patient/orders' })}
                 >
@@ -473,31 +473,31 @@ export default function PatientHomePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <Button 
+                <Button
                   className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
                   onClick={() => navigate({ to: '/dashboard/patient/book-appointment' })}
                 >
                   <CalendarIcon className="w-4 h-4 mr-3" />
                   Book New Appointment
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start"
                   onClick={() => navigate({ to: '/dashboard/patient/prescriptions' })}
                 >
                   <DocumentTextIcon className="w-4 h-4 mr-3" />
                   View Prescriptions
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start"
                   onClick={() => navigate({ to: '/dashboard/patient/orders' })}
                 >
                   <TruckIcon className="w-4 h-4 mr-3" />
                   Track Orders
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start"
                   onClick={() => navigate({ to: '/dashboard/patient/settings' })}
                 >

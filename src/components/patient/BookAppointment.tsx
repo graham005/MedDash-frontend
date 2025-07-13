@@ -39,22 +39,18 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
   const [step, setStep] = useState<'doctor' | 'datetime' | 'details' | 'confirm'>('doctor');
 
   const { data: currentUser } = useCurrentUser();
-
-  // Use the correct mutation hook
   const {
     mutate: createAppointment,
     isPending: isCreatingAppointment,
     error: createAppointmentError,
   } = useCreateAppointment();
-
-  // Use the hook directly, not as a property
   const { data: allAvailabilitySlots = [], isLoading: isLoadingSlots } = useAllAvailabilitySlots();
 
-  // Extract unique doctors from availability slots
+  // Only show doctors who have at least one available slot
   const doctors = useMemo(() => {
     const doctorMap = new Map<string, Doctor>();
     allAvailabilitySlots.forEach(slot => {
-      if (!doctorMap.has(slot.doctor.id)) {
+      if (!slot.isBooked) {
         doctorMap.set(slot.doctor.id, slot.doctor);
       }
     });
@@ -64,15 +60,12 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
   // Get available time slots for selected doctor and date
   const availableTimeSlots = useMemo(() => {
     if (!selectedDoctor || !selectedDate) return [];
-    
     return allAvailabilitySlots.filter(slot => {
       const slotDate = new Date(slot.startTime);
       const slotDoctor = slot.doctor.id === selectedDoctor.id;
       const slotOnSelectedDate = isSameDay(slotDate, selectedDate);
       const slotInFuture = isAfter(slotDate, new Date());
-      const slotNotBooked = !slot.isBooked;
-      
-      return slotDoctor && slotOnSelectedDate && slotInFuture && slotNotBooked;
+      return slotDoctor && slotOnSelectedDate && slotInFuture;
     });
   }, [selectedDoctor, selectedDate, allAvailabilitySlots]);
 
@@ -340,15 +333,22 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
                       variant={selectedTimeSlot?.id === slot.id ? "default" : "outline"}
                       size="sm"
                       className="h-fit p-2 flex flex-col items-center justify-center"
-                      onClick={() => handleTimeSlotSelect(slot)}
+                      onClick={() => !slot.isBooked && handleTimeSlotSelect(slot)}
+                      disabled={slot.isBooked}
                     >
                       <Clock className="w-4 h-4 mb-1" />
                       <span className="text-xs font-medium">
                         {format(new Date(slot.startTime), 'HH:mm')}
                       </span>
-                      <span className="text-xs text-gray-500 capitalize">
+                      <span className={cn(
+                        "text-xs capitalize",
+                        slot.isBooked ? "text-red-500" : "text-gray-500"
+                      )}>
                         {slot.type || 'standard'}
                       </span>
+                      {slot.isBooked && (
+                        <span className="text-[10px] text-red-500 mt-1">Booked</span>
+                      )}
                     </Button>
                   ))}
                 </div>
