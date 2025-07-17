@@ -11,7 +11,7 @@ export default function EditPharmacistProfile() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     pharmacyName: '',
-    licenceNumber: '',
+    licenseNumber: '',
   });
   const [error, setError] = useState('');
 
@@ -20,7 +20,7 @@ export default function EditPharmacistProfile() {
         const pharmacistProfile = user.profile as TPharmacistProfile
       setForm({
         pharmacyName: pharmacistProfile.pharmacyName || '',
-        licenceNumber: pharmacistProfile.licenceNumber || '',
+        licenseNumber: pharmacistProfile.licenseNumber || '',
       });
     }
   }, [user]);
@@ -41,7 +41,7 @@ export default function EditPharmacistProfile() {
         id: user.profile.id,
         profileData: {
           pharmacyName: form.pharmacyName,
-          licenceNumber: form.licenceNumber,
+          licenseNumber: form.licenseNumber,
         },
       });
       navigate({ to: '/dashboard/pharmacist/profile' });
@@ -88,8 +88,8 @@ export default function EditPharmacistProfile() {
                 <label className="block text-sm font-medium mb-1">License Number</label>
                 <input
                   type="text"
-                  name="licenceNumber"
-                  value={form.licenceNumber}
+                  name="licenseNumber"
+                  value={form.licenseNumber}
                   onChange={handleChange}
                   required
                   className="w-full px-3 py-2 rounded border bg-gray-50 dark:bg-slate-900 dark:text-white"

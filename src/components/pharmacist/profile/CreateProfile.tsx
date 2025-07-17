@@ -7,7 +7,7 @@ import { useNavigate } from '@tanstack/react-router';
 export default function CreatePharmacistProfile() {
   const [form, setForm] = useState({
     pharmacyName: '',
-    licenceNumber: '',
+    licenseNumber: '',
   });
   const [error, setError] = useState('');
   const createProfile = useCreatePharmacistProfile();
@@ -23,7 +23,7 @@ export default function CreatePharmacistProfile() {
     try {
       await createProfile.mutateAsync({
         pharmacyName: form.pharmacyName,
-        licenceNumber: form.licenceNumber,
+        licenseNumber: form.licenseNumber,
       });
       navigate({ to: '/dashboard/pharmacist/profile' });
     } catch (err: any) {
@@ -65,8 +65,8 @@ export default function CreatePharmacistProfile() {
                 <label className="block text-sm font-medium mb-1">License Number</label>
                 <input
                   type="text"
-                  name="licenceNumber"
-                  value={form.licenceNumber}
+                  name="licenseNumber"
+                  value={form.licenseNumber}
                   onChange={handleChange}
                   required
                   className="w-full px-3 py-2 rounded border bg-gray-50 dark:bg-slate-900 dark:text-white"

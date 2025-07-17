@@ -72,7 +72,7 @@ export default function PharmacistProfile() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[#021373] dark:text-[#8491D9] mb-1">License Number</label>
-                  <div className="font-semibold text-[#8491D9]">{profile?.licenceNumber || 'Not set'}</div>
+                  <div className="font-semibold text-[#8491D9]">{profile?.licenseNumber || 'Not set'}</div>
                 </div>
               </div>
             </div>
