@@ -36,7 +36,7 @@ export interface Medicine {
       email: string;
     };
     pharmacyName: string;
-    licenceNumber: string;
+    licenseNumber: string;
   };
 }
 

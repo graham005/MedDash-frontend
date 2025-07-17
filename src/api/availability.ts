@@ -29,7 +29,8 @@ export interface AvailabilitySlot {
     };
     specialization: string;
     qualification: string;
-    licenceNumber: string;
+    licenseNumber: string;
+    consultationFee: number;
   };
 }
 

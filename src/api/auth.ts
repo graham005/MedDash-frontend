@@ -46,7 +46,7 @@ interface ProfileResponse {
   qualification?: string;
   licenseNumber?: string;
   pharmacyName?: string;
-  licenceNumber?: string;
+  consultationFee: number;
 }
 
 // Create axios instance with default config
