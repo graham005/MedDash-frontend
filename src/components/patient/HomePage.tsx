@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
   CalendarIcon,
@@ -21,6 +21,7 @@ import { usePrescriptions } from '@/hooks/usePrescriptions'; // <-- FIXED
 import { usePharmacyOrders } from '@/hooks/usePharmacy';
 import { useAllAvailabilitySlots } from '@/hooks/useAvailability';
 import type { Prescription } from '@/api/prescription';
+import MedicalChat from '../MedicalChat';
 
 export default function PatientHomePage() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export default function PatientHomePage() {
   const orders = useMemo(() => {
     if (!currentUser || !allOrders) return [];
     return allOrders.filter(order =>
-      order.prescription?.patient?.user?.id === currentUser.id
+      order.prescription?.patient.id === currentUser.profile?.id
     );
   }, [allOrders, currentUser]);
 
@@ -72,7 +73,7 @@ export default function PatientHomePage() {
     }).length;
 
     const pendingOrders = orders.filter(order =>
-      ['PENDING', 'CONFIRMED', 'PROCESSING'].includes(order.status)
+      ['pending', 'confirmed', 'processing'].includes(order.status)
     ).length;
 
     const availableDoctors = new Set(
@@ -136,15 +137,20 @@ export default function PatientHomePage() {
 
   const getOrderStatusColor = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'CONFIRMED': return 'bg-blue-100 text-blue-800';
-      case 'PROCESSING': return 'bg-purple-100 text-purple-800';
-      case 'READY': return 'bg-green-100 text-green-800';
-      case 'COMPLETED': return 'bg-gray-100 text-gray-800';
-      case 'CANCELLED': return 'bg-red-100 text-red-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'confirmed': return 'bg-blue-100 text-blue-800';
+      case 'processing': return 'bg-purple-100 text-purple-800';
+      case 'ready': return 'bg-green-100 text-green-800';
+      case 'completed': return 'bg-gray-100 text-gray-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  useEffect(() => {
+    console.log('currentUser:', currentUser);
+    console.log('allOrders:', allOrders);
+  }, [currentUser, allOrders]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
@@ -278,6 +284,8 @@ export default function PatientHomePage() {
             </CardContent>
           </Card>
         </div>
+
+        <MedicalChat />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Upcoming Appointments */}

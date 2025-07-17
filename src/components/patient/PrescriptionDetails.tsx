@@ -292,7 +292,7 @@ export default function PrescriptionDetails() {
                         </h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
-                          License: {pharmacyInfo.licenceNumber}
+                          License: {pharmacyInfo.licenseNumber}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-500">
                           {pharmacyInfo.user.email}

@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import {  useAllAvailabilitySlots } from '@/hooks/useAvailability';
+import { useAllAvailabilitySlots } from '@/hooks/useAvailability';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useCreateAppointment } from '@/hooks/useAppointments';
+import { useInitializePayment, useVerifyPayment } from '@/hooks/usePayments';
 import type { AvailabilitySlot } from '@/api/availability';
 import type { CreateAppointmentDto } from '@/api/appointments';
+import { toast } from 'sonner';
 
 interface Doctor {
   id: string;
@@ -23,7 +25,8 @@ interface Doctor {
   };
   specialization: string;
   qualification: string;
-  licenceNumber: string;
+  licenseNumber: string;
+  consultationFee: number;
 }
 
 interface BookAppointmentProps {
@@ -45,11 +48,14 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
     error: createAppointmentError,
   } = useCreateAppointment();
   const { data: allAvailabilitySlots = [], isLoading: isLoadingSlots } = useAllAvailabilitySlots();
+  const initializePayment = useInitializePayment();
+  const verifyPayment = useVerifyPayment();
 
   // Only show doctors who have at least one available slot
   const doctors = useMemo(() => {
     const doctorMap = new Map<string, Doctor>();
     allAvailabilitySlots.forEach(slot => {
+      console.log(slot.type)
       if (!slot.isBooked) {
         doctorMap.set(slot.doctor.id, slot.doctor);
       }
@@ -131,21 +137,116 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
     });
   };
 
+  // Payment state
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentModal, setPaymentModal] = useState<{
+    authorizationUrl: string;
+    reference: string;
+    appointmentId: string;
+  } | null>(null);
+
+  // Payment handler for consultation
+  const handleConsultationPayment = async () => {
+    if (!selectedDoctor || !selectedTimeSlot || !currentUser) return;
+
+    setIsPaying(true);
+
+    // 1. Create the appointment with status 'pending'
+    const appointmentData: CreateAppointmentDto = {
+      doctorId: selectedDoctor.id,
+      patientId: currentUser?.id,
+      startTime: selectedTimeSlot.startTime,
+      endTime: selectedTimeSlot.endTime,
+      availabilitySlotId: selectedTimeSlot.id,
+      status: 'confirmed',
+      reasonForVisit
+    };
+
+    createAppointment(appointmentData, {
+      onSuccess: async (appointment) => {
+        // 2. Initialize payment
+        try {
+          const paymentResponse = await initializePayment.mutateAsync({
+            fullName: `${currentUser.profile?.user?.firstName} ${currentUser.profile?.user?.lastName}`,
+            email: currentUser.profile?.user?.email ?? '',
+            phoneNumber: currentUser.profile?.user?.phoneNumber || '',
+            amount: Number(selectedDoctor.consultationFee),
+            type: 'appointment',
+            appointmentId: appointment.id,
+            notes: `Consultation payment for appointment ${appointment.id}`
+          });
+
+          setPaymentModal({
+            authorizationUrl: paymentResponse.paystack_data.authorization_url,
+            reference: paymentResponse.paystack_data.reference,
+            appointmentId: appointment.id
+          });
+        } catch (err) {
+          toast.error('Failed to initialize payment');
+        } finally {
+          setIsPaying(false);
+        }
+      },
+      onError: () => {
+        setIsPaying(false);
+      }
+    });
+  };
+
+  // Handle payment verification after Paystack window closes
+  const handleVerifyPayment = async () => {
+    if (!paymentModal) return;
+    setIsPaying(true);
+    try {
+      const verification = await verifyPayment.mutateAsync(paymentModal.reference);
+      if (verification.status === 'success') {
+        // Optionally, update the appointment status to 'confirmed' here if your backend doesn't do it automatically
+        toast.success('Payment verified and appointment confirmed!');
+        setStep('confirm');
+        setPaymentModal(null);
+      } else {
+        toast.error('Payment verification failed');
+      }
+    } catch (err) {
+      toast.error('Payment verification failed');
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
+  // Open Paystack payment page and listen for window close
+  useEffect(() => {
+    if (paymentModal?.authorizationUrl) {
+      const paymentWindow = window.open(
+        paymentModal.authorizationUrl,
+        '_blank',
+        'width=500,height=600,scrollbars=yes,resizable=yes'
+      );
+      const checkClosed = setInterval(() => {
+        if (paymentWindow?.closed) {
+          clearInterval(checkClosed);
+          setTimeout(() => {
+            handleVerifyPayment();
+          }, 2000);
+        }
+      }, 1000);
+      return () => clearInterval(checkClosed);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentModal?.authorizationUrl]);
+
+
+  // Reset form to initial state
   const resetForm = () => {
     setSelectedDoctor(null);
     setSelectedDate(new Date());
     setSelectedTimeSlot(null);
     setReasonForVisit('');
+    setCurrentDoctorIndex(0);
     setStep('doctor');
+    setPaymentModal(null);
+    setIsPaying(false);
   };
-
-  if (isLoadingSlots) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
 
   return (
     <div className={cn("space-y-6 w-full  mx-auto p-6 dark:bg-slate-950", className)}>
@@ -165,7 +266,7 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
         ].map((stepItem, index) => {
           const Icon = stepItem.icon;
           const isActive = step === stepItem.key;
-          const isCompleted = 
+          const isCompleted =
             (step === 'datetime' && stepItem.key === 'doctor') ||
             (step === 'details' && ['doctor', 'datetime'].includes(stepItem.key)) ||
             (step === 'confirm' && ['doctor', 'datetime', 'details'].includes(stepItem.key));
@@ -211,74 +312,100 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
             <CardDescription>Select from our available healthcare professionals</CardDescription>
           </CardHeader>
           <CardContent>
-            {doctors.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No doctors available at the moment. Please try again later.
-              </div>
-            ) : (
-              <div className="relative">
-                {/* Carousel Navigation */}
-                <div className="flex items-center justify-between mb-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePrevDoctor}
-                    disabled={currentDoctorIndex === 0}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm text-gray-500">
-                    {currentDoctorIndex + 1} - {Math.min(currentDoctorIndex + 3, doctors.length)} of {doctors.length}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleNextDoctor}
-                    disabled={currentDoctorIndex >= doctors.length - 3}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
+            {(() => {
+              // Filter doctors who have at least one future available slot
+              const now = new Date();
+              const availableDoctors = doctors.filter(doctor =>
+                allAvailabilitySlots.some(
+                  slot =>
+                    slot.doctor.id === doctor.id &&
+                    !slot.isBooked &&
+                    new Date(slot.startTime) > now
+                )
+              );
 
-                {/* Doctor Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {doctors.slice(currentDoctorIndex, currentDoctorIndex + 3).map((doctor) => (
-                    <Card
-                      key={doctor.id}
-                      className={cn(
-                        "cursor-pointer transition-all duration-200 hover:shadow-lg hover:dark:ring-indigo-500 ring-2",
-                        selectedDoctor?.id === doctor.id && "ring-2 ring-indigo-500 bg-blue-50 dark:bg-blue-950"
-                      )}
-                      onClick={() => handleDoctorSelect(doctor)}
+              if (availableDoctors.length === 0) {
+                return (
+                  <div className="text-center py-8 text-gray-500">
+                    No doctors available at the moment. Please try again later.
+                  </div>
+                );
+              }
+
+              return (
+                <div className="relative">
+                  {/* Carousel Navigation */}
+                  <div className="flex items-center justify-between mb-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePrevDoctor}
+                      disabled={currentDoctorIndex === 0}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center space-x-4">
-                          <img
-                            src={`https://randomuser.me/api/portraits/${doctor.id.length % 2 === 0 ? 'women' : 'men'}/${Math.abs(doctor.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % 100}.jpg`}
-                            alt={`Dr. ${doctor.user.firstName.toUpperCase()} ${doctor.user.lastName.toUpperCase()}`}
-                            className="w-16 h-16 rounded-full object-cover"
-                          />
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg">
-                              Dr. {doctor.user.firstName} {doctor.user.lastName}
-                            </h3>
-                            <p className="text-blue-600 dark:text-blue-400 font-medium">
-                              {doctor.specialization}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {doctor.qualification}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              License: {doctor.licenceNumber}
-                            </p>
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm text-gray-500">
+                      {currentDoctorIndex + 1} - {Math.min(currentDoctorIndex + 3, availableDoctors.length)} of {availableDoctors.length}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextDoctor}
+                      disabled={currentDoctorIndex >= availableDoctors.length - 3}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  {/* Doctor Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {availableDoctors.slice(currentDoctorIndex, currentDoctorIndex + 3).map((doctor) => (
+                      <Card
+                        key={doctor.id}
+                        className={cn(
+                          "cursor-pointer transition-all duration-200 hover:bg-gray-50 hover:shadow-lg hover:scale-105 dark:bg-slate-900",
+                          selectedDoctor?.id === doctor.id
+                        )}
+                        onClick={() => handleDoctorSelect(doctor)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-4">
+                            <img
+                              src={`https://randomuser.me/api/portraits/${doctor.id.length % 2 === 0 ? 'women' : 'men'}/${Math.abs(doctor.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % 100}.jpg`}
+                              alt={`Dr. ${doctor.user.firstName.toUpperCase()} ${doctor.user.lastName.toUpperCase()}`}
+                              className="w-16 h-16 rounded-full object-cover"
+                            />
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg">
+                                Dr. {doctor.user.firstName} {doctor.user.lastName}
+                              </h3>
+                              <p className="text-blue-600 dark:text-blue-400 font-medium">
+                                {doctor.specialization}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {doctor.qualification}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                License: {doctor.licenseNumber}
+                              </p>
+                              <p className='text-sm text-gray-400'>
+                                {allAvailabilitySlots.some(
+                                  slot =>
+                                    slot.doctor.id === doctor.id &&
+                                    slot.type === 'consultation'
+                                )
+                                ? `Consultation Fee: ${doctor.consultationFee}`
+                                  : null}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
       )}
@@ -321,36 +448,38 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
               <Label className="text-sm font-medium mb-3 block">
                 Available Times for {format(selectedDate, 'EEEE, MMMM d')}
               </Label>
-              {availableTimeSlots.length === 0 ? (
+              {availableTimeSlots.filter(slot => new Date(slot.startTime) > new Date()).length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   No available time slots for this date. Please select another date.
                 </div>
               ) : (
                 <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                  {availableTimeSlots.map((slot) => (
-                    <Button
-                      key={slot.id}
-                      variant={selectedTimeSlot?.id === slot.id ? "default" : "outline"}
-                      size="sm"
-                      className="h-fit p-2 flex flex-col items-center justify-center"
-                      onClick={() => !slot.isBooked && handleTimeSlotSelect(slot)}
-                      disabled={slot.isBooked}
-                    >
-                      <Clock className="w-4 h-4 mb-1" />
-                      <span className="text-xs font-medium">
-                        {format(new Date(slot.startTime), 'HH:mm')}
-                      </span>
-                      <span className={cn(
-                        "text-xs capitalize",
-                        slot.isBooked ? "text-red-500" : "text-gray-500"
-                      )}>
-                        {slot.type || 'standard'}
-                      </span>
-                      {slot.isBooked && (
-                        <span className="text-[10px] text-red-500 mt-1">Booked</span>
-                      )}
-                    </Button>
-                  ))}
+                  {availableTimeSlots
+                    .filter(slot => new Date(slot.startTime) > new Date())
+                    .map((slot) => (
+                      <Button
+                        key={slot.id}
+                        variant={selectedTimeSlot?.id === slot.id ? "default" : "outline"}
+                        size="sm"
+                        className="h-fit p-2 flex flex-col items-center justify-center"
+                        onClick={() => !slot.isBooked && handleTimeSlotSelect(slot)}
+                        disabled={slot.isBooked}
+                      >
+                        <Clock className="w-4 h-4 mb-1" />
+                        <span className="text-xs font-medium">
+                          {format(new Date(slot.startTime), 'HH:mm')}
+                        </span>
+                        <span className={cn(
+                          "text-xs capitalize",
+                          slot.isBooked ? "text-red-500" : "text-gray-500"
+                        )}>
+                          {slot.type || 'standard'}
+                        </span>
+                        {slot.isBooked && (
+                          <span className="text-[10px] text-red-500 mt-1">Booked</span>
+                        )}
+                      </Button>
+                    ))}
                 </div>
               )}
             </div>
@@ -360,8 +489,8 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
               <Button variant="outline" onClick={() => setStep('doctor')}>
                 Back to Doctors
               </Button>
-              <Button 
-                onClick={() => setStep('details')} 
+              <Button
+                onClick={() => setStep('details')}
                 disabled={!selectedTimeSlot}
               >
                 Continue to Details
@@ -388,7 +517,7 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
                 <Label htmlFor="firstName">First Name</Label>
                 <Input
                   id="firstName"
-                  value={currentUser?.firstName || ''}
+                  value={currentUser?.profile?.user?.firstName || ''}
                   disabled
                   className="bg-gray-50 dark:bg-gray-800"
                 />
@@ -397,7 +526,7 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
                 <Label htmlFor="lastName">Last Name</Label>
                 <Input
                   id="lastName"
-                  value={currentUser?.lastName || ''}
+                  value={currentUser?.profile?.user?.lastName || ''}
                   disabled
                   className="bg-gray-50 dark:bg-gray-800"
                 />
@@ -407,7 +536,7 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
                 <Input
                   id="email"
                   type="email"
-                  value={currentUser?.email || ''}
+                  value={currentUser?.profile?.user?.email || ''}
                   disabled
                   className="bg-gray-50 dark:bg-gray-800"
                 />
@@ -435,7 +564,13 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
                 <p><span className="font-medium">Specialization:</span> {selectedDoctor?.specialization}</p>
                 <p><span className="font-medium">Date:</span> {format(selectedDate, 'EEEE, MMMM d, yyyy')}</p>
                 <p><span className="font-medium">Time:</span> {selectedTimeSlot ? format(new Date(selectedTimeSlot.startTime), 'HH:mm') : ''} - {selectedTimeSlot ? format(new Date(selectedTimeSlot.endTime), 'HH:mm') : ''}</p>
-                <p><span className="font-medium">Type:</span> {selectedTimeSlot?.type || 'Standard'} consultation</p>
+                <p><span className="font-medium">Type:</span> {selectedTimeSlot?.type}</p>
+                {/* Show cost if consultation */}
+                {selectedTimeSlot?.type === 'consultation' && (
+                  <p>
+                    <span className="font-medium">Consultation Fee:</span> {selectedDoctor?.consultationFee}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -448,17 +583,37 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
               </div>
             )}
 
-            {/* Navigation */}
+            {/* Navigation & Payment */}
             <div className="flex items-center justify-between pt-4">
               <Button variant="outline" onClick={() => setStep('datetime')}>
                 Back to Date & Time
               </Button>
-              <Button 
-                onClick={handleBookAppointment}
-                disabled={isCreatingAppointment || !reasonForVisit.trim()}
-              >
-                {isCreatingAppointment ? 'Booking...' : 'Book Appointment'}
-              </Button>
+              <div className="flex gap-2">
+                {selectedTimeSlot?.type === 'consultation' ? (
+                  <>
+                    <Button
+                      onClick={handleConsultationPayment}
+                      disabled={isPaying || !reasonForVisit.trim()}
+                    >
+                      {isPaying ? 'Processing Payment...' : `Pay & Book (${selectedDoctor?.consultationFee})`}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={handleBookAppointment}
+                      disabled={isCreatingAppointment || !reasonForVisit.trim()}
+                    >
+                      {isCreatingAppointment ? 'Booking...' : 'Book Without Payment'}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    onClick={handleBookAppointment}
+                    disabled={isCreatingAppointment || !reasonForVisit.trim()}
+                  >
+                    {isCreatingAppointment ? 'Booking...' : 'Book Appointment'}
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -484,7 +639,7 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
                 <p><span className="font-medium">Status:</span> Booked</p>
               </div>
             </div>
-            
+
             <p className="text-gray-600 dark:text-gray-400">
               You will receive a confirmation email shortly. Please arrive 15 minutes before your appointment time.
             </p>

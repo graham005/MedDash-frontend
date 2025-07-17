@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { 
   usePatientAppointments, 
-  useCancelAppointment 
+  useCancelAppointment,
+  useUpdateAppointment
 } from '@/hooks/useAppointments';
 import { useAllAvailabilitySlots } from '@/hooks/useAvailability';
 import { useCurrentUser } from '@/hooks/useAuth';
@@ -15,6 +16,9 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
+import type { Appointment } from '@/api/appointments';
+import { useInitializePayment, useVerifyPayment } from '@/hooks/usePayments';
+import { toast } from 'sonner';
 
 interface Doctor {
   id: string;
@@ -26,7 +30,7 @@ interface Doctor {
   };
   specialization: string;
   qualification: string;
-  licenceNumber: string;
+  licenseNumber: string;
 }
 
 export default function AppointmentPage() {
@@ -48,23 +52,37 @@ export default function AppointmentPage() {
   const { data: currentUser } = useCurrentUser();
   const navigate = useNavigate();
 
+  const [payingAppointment, setPayingAppointment] = useState<null | { appointment: Appointment }> (null);
+  const initializePayment = useInitializePayment();
+  const verifyPayment = useVerifyPayment();
+  const { mutate: updateAppointment } = useUpdateAppointment();
+
   // Extract unique doctors from availability slots for stats
   const availableDoctors = useMemo(() => {
     if (!availabilitySlots) return [];
-    
+
+    const now = new Date();
     const doctorMap = new Map();
+
     availabilitySlots.forEach(slot => {
-      if (slot.doctor && !doctorMap.has(slot.doctor.id)) {
-        doctorMap.set(slot.doctor.id, {
-          id: slot.doctor.id,
-          user: slot.doctor.user,
-          specialization: slot.doctor.specialization || 'General Medicine',
-          qualification: slot.doctor.qualification || 'MD',
-          licenceNumber: slot.doctor.licenceNumber || '',
-        });
+      // Only consider slots that are not booked and in the future
+      if (
+        slot.doctor &&
+        !slot.isBooked &&
+        new Date(slot.startTime) > now
+      ) {
+        if (!doctorMap.has(slot.doctor.id)) {
+          doctorMap.set(slot.doctor.id, {
+            id: slot.doctor.id,
+            user: slot.doctor.user,
+            specialization: slot.doctor.specialization || 'General Medicine',
+            qualification: slot.doctor.qualification || 'MD',
+            licenseNumber: slot.doctor.licenseNumber || '',
+          });
+        }
       }
     });
-    
+
     return Array.from(doctorMap.values());
   }, [availabilitySlots]);
 
@@ -79,7 +97,7 @@ export default function AppointmentPage() {
     return { upcomingAppointments: upcoming, pastAppointments: past };
   }, [patientAppointments]);
 
-  const getAppointmentStatus = (appointment: any) => {
+  const getAppointmentStatus = (appointment: Appointment) => {
     const appointmentDate = new Date(appointment.startTime);
     
     if (appointment.status === 'cancelled') {
@@ -123,6 +141,61 @@ export default function AppointmentPage() {
     ).length;
   }, [availabilitySlots]);
 
+  // Payment handler for consultation appointments
+  const handlePayNow = async (appointment: Appointment) => {
+    setPayingAppointment({ appointment });
+    try {
+      const paymentResponse = await initializePayment.mutateAsync({
+        fullName: `${appointment.patient?.user?.firstName ?? ''} ${appointment.patient?.user?.lastName ?? ''}`,
+        email: appointment.patient?.user?.email ?? '',
+        phoneNumber: appointment.patient?.user?.phoneNumber ?? '',
+        amount: Number(appointment.doctor?.consultationFee ?? 0),
+        type: 'appointment',
+        appointmentId: appointment.id,
+        notes: `Consultation payment for appointment ${appointment.id}`
+      });
+
+      // Open Paystack payment page
+      const paymentWindow = window.open(
+        paymentResponse.paystack_data.authorization_url,
+        '_blank',
+        'width=500,height=600,scrollbars=yes,resizable=yes'
+      );
+      const checkClosed = setInterval(async () => {
+        if (paymentWindow?.closed) {
+          clearInterval(checkClosed);
+          setTimeout(async () => {
+            try {
+              const verification = await verifyPayment.mutateAsync(paymentResponse.paystack_data.reference);
+              if (verification.status === 'success') {
+                // Update appointment status to confirmed
+                updateAppointment(
+                  { id: appointment.id, data: { status: 'confirmed', reasonForVisit: appointment.reasonForVisit } },
+                  {
+                    onSuccess: () => {
+                      window.location.reload(); // Refresh to update appointment status
+                    },
+                    onError: () => {
+                      toast.error('Payment succeeded but failed to confirm appointment.');
+                    }
+                  }
+                );
+              } else {
+                toast.error('Payment verification failed');
+              }
+            } catch {
+              toast.error('Payment verification failed');
+            }
+          }, 2000);
+        }
+      }, 1000);
+    } catch (err) {
+      toast.error('Failed to initialize payment');
+    } finally {
+      setPayingAppointment(null);
+    }
+  };
+
   if (isLoadingPatientAppointments || isLoadingAvailability) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -163,48 +236,68 @@ export default function AppointmentPage() {
           ) : (
             <div className="space-y-4">
               {upcomingAppointments.map((appointment) => {
-                  const status = getAppointmentStatus(appointment);
-                  const appointmentDate = new Date(appointment.startTime);
-                  
-                  return (
-                    <div key={appointment.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                          {getDoctorInitials(appointment.doctor)}
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-gray-900 dark:text-white">
-                            Dr. {appointment?.doctor?.user.firstName} {appointment.doctor.user.lastName}
-                          </h4>
-                          <p className="text-sm text-gray-600">{appointment.doctor?.specialization ?? ''}</p>
-                          <p className="text-sm text-gray-500">
-                            {format(appointmentDate, 'MMM d, h:mm a')}
-                          </p>
-                        </div>
+                const status = getAppointmentStatus(appointment);
+                const appointmentDate = new Date(appointment.startTime);
+                const slotType = appointment.availabilitySlot.type;
+
+                return (
+                  <div key={appointment.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                        {getDoctorInitials(appointment.doctor)}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.color}`}>
-                          {status.label}
-                        </span>
-                        {isToday(appointmentDate) && appointment.status !== 'cancelled' && (
-                          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors flex items-center gap-2">
-                            <VideoCameraIcon className="w-4 h-4" />
-                            Join Call
-                          </button>
-                        )}
-                        {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                          <button 
-                            onClick={() => handleCancelAppointment(appointment.id)}
-                            disabled={isCancellingAppointment}
-                            className="px-4 py-2 border border-red-600 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        )}
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-white">
+                          Dr. {appointment?.doctor?.user.firstName} {appointment.doctor.user.lastName}
+                        </h4>
+                        <p className="text-sm text-gray-600">{appointment.doctor?.specialization ?? ''}</p>
+                        <p className="text-sm text-gray-500">
+                          {format(appointmentDate, 'MMM d, h:mm a')}
+                        </p>
+                        <p className="text-xs text-gray-500 capitalize">
+                          Type: {slotType}
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                        {status.label}
+                      </span>
+                      {/* Consultation: Show Join Call if confirmed, else Pay Now */}
+                      {slotType === 'consultation' && isToday(appointmentDate) && appointment.status !== 'cancelled' && (
+                        appointment.status === 'confirmed' ? (
+                          <a
+                          href={appointment.meetingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        >
+                          <VideoCameraIcon className="w-4 h-4" />
+                          Join Call
+                        </a>
+                        ) : (
+                          <button
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors flex items-center gap-2"
+                            onClick={() => handlePayNow(appointment)}
+                            disabled={payingAppointment?.appointment.id === appointment.id}
+                          >
+                            {payingAppointment?.appointment.id === appointment.id ? 'Processing...' : 'Pay Now'}
+                          </button>
+                        )
+                      )}
+                      {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                        <button 
+                          onClick={() => handleCancelAppointment(appointment.id)}
+                          disabled={isCancellingAppointment}
+                          className="px-4 py-2 border border-red-600 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

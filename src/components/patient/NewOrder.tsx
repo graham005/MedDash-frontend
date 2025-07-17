@@ -1,22 +1,139 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { usePrescriptions } from '@/hooks/usePrescriptions';
-import { useMedicines, useCreatePharmacyOrder } from '@/hooks/usePharmacy';
+import { useMedicines, useCreatePharmacyOrder, useConfirmOrder } from '@/hooks/usePharmacy';
+import { useInitializePayment, useVerifyPayment } from '@/hooks/usePayments';
+import { useCurrentUser } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, FileText, Search, PlusCircle } from 'lucide-react';
+import { Loader2, FileText, Search, PlusCircle, CreditCard } from 'lucide-react';
 import { OrderStatus } from '@/api/pharmacy-order';
+
+// Paystack payment modal
+function PaystackPaymentModal({
+    open,
+    amount,
+    onSuccess,
+    onCancel,
+    authorizationUrl,
+    reference
+}: {
+    open: boolean;
+    amount: number;
+    onSuccess: () => void;
+    onCancel: () => void;
+    authorizationUrl?: string;
+    reference?: string;
+}) {
+    const verifyPayment = useVerifyPayment();
+    const [isVerifying, setIsVerifying] = useState(false);
+
+    const handlePaystackSuccess = async () => {
+        if (!reference) {
+            toast.error('Payment reference not found');
+            return;
+        }
+
+        setIsVerifying(true);
+        try {
+            const verification = await verifyPayment.mutateAsync(reference);
+            console.log('Payment verification:', verification);
+
+            if (verification.status === 'success') {
+                onSuccess();
+                toast.success('Payment verified successfully!');
+            } else {
+                toast.error('Payment verification failed');
+            }
+        } catch (error) {
+            console.error('Payment verification failed:', error);
+            toast.error('Payment verification failed');
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const openPaystackPage = () => {
+        if (!authorizationUrl) {
+            toast.error('Payment URL not available');
+            return;
+        }
+
+        // Open Paystack payment page in new window
+        const paymentWindow = window.open(
+            authorizationUrl,
+            '_blank',
+            'width=500,height=600,scrollbars=yes,resizable=yes'
+        );
+
+        if (!paymentWindow) {
+            toast.error('Please allow popups to complete payment');
+            return;
+        }
+
+        // Listen for payment completion
+        const checkClosed = setInterval(() => {
+            if (paymentWindow?.closed) {
+                clearInterval(checkClosed);
+                // Give user a moment to complete the payment before verifying
+                setTimeout(() => {
+                    handlePaystackSuccess();
+                }, 2000);
+            }
+        }, 1000);
+    };
+
+    if (!open) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60">
+            <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-8 w-full max-w-sm flex flex-col items-center">
+                <CreditCard className="w-10 h-10 text-[#8491D9] mb-4" />
+                <div className="text-lg font-bold mb-2 text-indigo-900 dark:text-white">Payment</div>
+                <div className="mb-4 text-gray-700 dark:text-gray-300 text-center">
+                    Amount to pay: <span className="font-bold text-green-700 dark:text-green-400">
+                        Ksh.{amount.toLocaleString()}
+                    </span>
+                </div>
+                <Button
+                    className="w-full mb-2 bg-[#021373] hover:bg-[#8491D9] text-white"
+                    onClick={openPaystackPage}
+                    disabled={!authorizationUrl || isVerifying}
+                >
+                    {isVerifying ? (
+                        <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Verifying...
+                        </>
+                    ) : (
+                        'Pay with Paystack'
+                    )}
+                </Button>
+                <Button className="w-full" variant="outline" onClick={onCancel}>Cancel</Button>
+            </div>
+        </div>
+    );
+}
 
 export default function NewOrder() {
     const navigate = useNavigate();
     const { data: prescriptions = [], isLoading, error } = usePrescriptions();
     const { data: medicines = [] } = useMedicines();
+    const { data: currentUser } = useCurrentUser();
     const createOrder = useCreatePharmacyOrder();
+    const initializePayment = useInitializePayment();
+    const confirmOrder = useConfirmOrder();
 
     const [search, setSearch] = useState('');
     const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+    const [paymentData, setPaymentData] = useState<{
+        authorizationUrl: string;
+        reference: string;
+    } | null>(null);
 
     // Filter prescriptions by search
     const filteredPrescriptions = useMemo(() => {
@@ -43,9 +160,9 @@ export default function NewOrder() {
         return sum;
     }, [selectedPrescriptionId, prescriptions, medicines]);
 
-    // Handle order creation
+    // Handle order creation and payment initialization
     const handleCreateOrder = async () => {
-        if (!selectedPrescriptionId) {
+        if (!selectedPrescriptionId || !currentUser) {
             toast.error('Please select a prescription to order.');
             return;
         }
@@ -53,31 +170,76 @@ export default function NewOrder() {
             toast.error('Unable to calculate total amount. Please check prescription medicines and quantities.');
             return;
         }
+
         setSubmitting(true);
-        createOrder.mutate(
-            { prescriptionId: selectedPrescriptionId, totalAmount: Number(totalAmount), status: OrderStatus.PENDING }, // <-- add status
-            {
-                onSuccess: (order) => {
-                    toast.success('Order created successfully!');
-                    navigate({ to: `/dashboard/patient/orders/${order.id}` });
-                },
-                onError: (err: any) => {
-                    toast.error(err?.message || 'Failed to create order.');
-                },
-                onSettled: () => setSubmitting(false),
-            }
-        );
-        console.log(createOrder)
-        console.log({
-            prescriptionId: selectedPrescriptionId,
-            totalAmount,
-            status: OrderStatus.PENDING,
-            typeofTotalAmount: typeof totalAmount
-        });
+
+        try {
+            // Step 1: Create the order
+            const order = await createOrder.mutateAsync({
+                prescriptionId: selectedPrescriptionId,
+                totalAmount: Number(totalAmount),
+                status: OrderStatus.PENDING
+            });
+            setPendingOrderId(order.id);
+
+            // Step 2: Initialize payment
+            const paymentResponse = await initializePayment.mutateAsync({
+                fullName: `${currentUser.profile?.user?.firstName} ${currentUser.profile?.user?.lastName}`,
+                email: currentUser.profile?.user?.email ?? '',
+                phoneNumber: currentUser.profile?.user?.phoneNumber || '',
+                amount: totalAmount,
+                type: 'pharmacy_order',
+                pharmacyOrderId: order.id,
+                notes: `Payment for pharmacy order ${order.id}`
+            });
+
+            // Step 3: Show payment modal with Paystack URL
+            setPaymentData({
+                authorizationUrl: paymentResponse.paystack_data.authorization_url,
+                reference: paymentResponse.paystack_data.reference
+            });
+            setShowPaymentModal(true);
+
+            // Step 4: Confirm the order status after payment initialization
+            // (You may want to move this to after payment verification if you only want to confirm after successful payment)
+            await confirmOrder.mutateAsync(order.id);
+
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Failed to create order');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    // Handle successful payment
+    const handlePaymentSuccess = () => {
+        setShowPaymentModal(false);
+        setPaymentData(null);
+        toast.success('Payment successful!');
+
+        if (pendingOrderId) {
+            navigate({ to: `/dashboard/patient/orders/${pendingOrderId}` });
+        }
+    };
+
+    // Handle payment cancellation
+    const handlePaymentCancel = () => {
+        setShowPaymentModal(false);
+        setPaymentData(null);
+        setPendingOrderId(null);
     };
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-[#010626] transition-colors">
+            <PaystackPaymentModal
+                open={showPaymentModal}
+                amount={totalAmount}
+                authorizationUrl={paymentData?.authorizationUrl}
+                reference={paymentData?.reference}
+                onSuccess={handlePaymentSuccess}
+                onCancel={handlePaymentCancel}
+            />
+
             <div className="max-w-3xl mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="mb-8">
@@ -122,15 +284,13 @@ export default function NewOrder() {
                         filteredPrescriptions.map(prescription => (
                             <Card
                                 key={prescription.id}
-                                className={`transition border-2 ${selectedPrescriptionId === prescription.id
-                                        ? 'border-[#8491D9] ring-2 ring-[#8491D9]'
-                                        : 'border-transparent'
+                                className={`transition border-2 cursor-pointer ${selectedPrescriptionId === prescription.id
+                                    ? 'border-[#8491D9] ring-2 ring-[#8491D9]'
+                                    : 'border-transparent'
                                     } hover:border-[#8491D9]`}
                                 onClick={() => setSelectedPrescriptionId(prescription.id)}
-                                tabIndex={0}
-                                role="button"
                             >
-                                <CardContent className="flex items-center gap-4 py-4 cursor-pointer">
+                                <CardContent className="flex items-center gap-4 py-4">
                                     <div className="bg-[#8491D9] rounded-lg p-3">
                                         <FileText className="w-6 h-6 text-white" />
                                     </div>
@@ -183,7 +343,48 @@ export default function NewOrder() {
                 {/* Action Button */}
                 <div className="flex justify-end">
                     <Button
-                        className="bg-[#021373] hover:bg-[#8491D9] text-white px-8 py-3 text-lg font-semibold rounded-lg"
+                        className="mr-4 bg-gray-200 hover:bg-gray-300 text-[#021373] dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-[#8491D9] px-8 py-3 text-lg font-semibold rounded-lg flex items-center gap-2"
+                        disabled={!selectedPrescriptionId || submitting}
+                        variant="outline"
+                        onClick={async () => {
+                            if (!selectedPrescriptionId || !currentUser) {
+                                toast.error('Please select a prescription to order.');
+                                return;
+                            }
+                            if (!totalAmount || totalAmount <= 0) {
+                                toast.error('Unable to calculate total amount. Please check prescription medicines and quantities.');
+                                return;
+                            }
+                            setSubmitting(true);
+                            try {
+                                const order = await createOrder.mutateAsync({
+                                    prescriptionId: selectedPrescriptionId,
+                                    totalAmount: Number(totalAmount),
+                                    status: OrderStatus.PENDING
+                                });
+                                toast.success('Order created successfully!');
+                                navigate({ to: `/dashboard/patient/orders/${order.id}` });
+                            } catch (error: any) {
+                                toast.error(error?.response?.data?.message || 'Failed to create order');
+                            } finally {
+                                setSubmitting(false);
+                            }
+                        }}
+                    >
+                        {submitting ? (
+                            <>
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                Creating Order...
+                            </>
+                        ) : (
+                            <>
+                                <PlusCircle className="w-5 h-5 mr-2" />
+                                Create Order Only
+                            </>
+                        )}
+                    </Button>
+                    <Button
+                        className="bg-[#021373] hover:bg-[#8491D9] text-white px-8 py-3 text-lg font-semibold rounded-lg flex items-center gap-2"
                         disabled={!selectedPrescriptionId || submitting}
                         onClick={handleCreateOrder}
                     >
@@ -193,7 +394,10 @@ export default function NewOrder() {
                                 Creating Order...
                             </>
                         ) : (
-                            <>Create Order</>
+                            <>
+                                <CreditCard className="w-5 h-5 mr-2" />
+                                Create & Pay
+                            </>
                         )}
                     </Button>
                 </div>
