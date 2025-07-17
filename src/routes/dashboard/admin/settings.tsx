@@ -1,3 +1,4 @@
+import AdminProfileDetails from '@/components/admin/Profile'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/dashboard/admin/settings')({
@@ -5,5 +6,5 @@ export const Route = createFileRoute('/dashboard/admin/settings')({
 })
 
 function RouteComponent() {
-  return <div>Hello "/dashboard/admin/settings"!</div>
+  return <div><AdminProfileDetails /></div>
 }
