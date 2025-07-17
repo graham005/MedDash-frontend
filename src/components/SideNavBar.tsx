@@ -1,4 +1,4 @@
-import { Link, useRouterState } from '@tanstack/react-router'
+import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import {
     ChartBarIcon,
     UsersIcon,
@@ -13,11 +13,35 @@ import {
 } from "@heroicons/react/24/solid";
 import { useLogout } from '@/hooks/useAuth';
 import { ModeToggle } from './mode-toggle';
+import { UserRole } from '@/types/enums';
+import { useState } from 'react';
 
-const NAV_CONFIG = {
+type NavDropdownItem = {
+    label: string;
+    to: string;
+};
+
+type NavItem = {
+    label: string;
+    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+    to?: string;
+    dropdown?: NavDropdownItem[];
+};
+
+const NAV_CONFIG: Record<UserRole, NavItem[]> = {
     admin: [
         { label: "Dashboard", icon: ChartBarIcon, to: "/dashboard/admin" },
-        { label: "Users", icon: UsersIcon, to: "/dashboard/admin/users" },
+        {
+            label: "Users",
+            icon: UsersIcon,
+            dropdown: [
+                // { label: "All Users", to: "/dashboard/admin/users" },
+                { label: "Patients", to: "/dashboard/admin/users/patients" },
+                { label: "Doctors", to: "/dashboard/admin/users/doctors" },
+                { label: "Pharmacists", to: "/dashboard/admin/users/pharmacists" },
+                { label: "Admins", to: "/dashboard/admin/users/admins" },
+            ],
+        },
         { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/admin/settings" },
     ],
     patient: [
@@ -42,16 +66,18 @@ const NAV_CONFIG = {
     ],
 };
 
-export type Role = "admin" | "patient" | "doctor" | "pharmacist";
+export type Role = UserRole;
 
 interface SideNavBarProps {
     role: Role;
 }
 
 export default function SideNavBar({ role }: SideNavBarProps) {
+    const [usersDropdownOpen, setUsersDropdownOpen] = useState(false);
     if (!role) return null;
     const navItems = NAV_CONFIG[role];
     const { location } = useRouterState();
+    const navigate = useNavigate();
     const { mutate: logout, isPending: isLogoutPending } = useLogout();
 
     return (
@@ -59,7 +85,8 @@ export default function SideNavBar({ role }: SideNavBarProps) {
             dark:bg-slate-900 dark:text-slate-100 transition-colors">
             <div className='flex flex-row justify-between'>
                 <div className="mb-8">
-                    <div className="text-2xl font-bold text-indigo-200 dark:text-indigo-400">MedDash</div>
+                    <div className="text-2xl font-bold text-indigo-200 dark:text-indigo-400">
+                        MedDash</div>
                     <div className="text-sm text-indigo-100 opacity-70 dark:text-indigo-200 dark:opacity-80">
                         {role.charAt(0).toUpperCase() + role.slice(1)} Portal
                     </div>
@@ -70,17 +97,68 @@ export default function SideNavBar({ role }: SideNavBarProps) {
             </div>
             <nav className="flex flex-col gap-2">
                 {navItems.map((item) => {
+                    // Dropdown for admin users
+                    if (role === "admin" && item.dropdown) {
+                        const isAnyActive = item.dropdown.some((d) => location.pathname === d.to) || location.pathname === "/dashboard/admin/users";
+                        return (
+                            <div key={item.label} className="relative">
+                                <div
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium w-full transition cursor-pointer
+                                    ${isAnyActive
+                                        ? "bg-indigo-900 text-indigo-200 dark:bg-indigo-700 dark:text-white"
+                                        : "hover:bg-indigo-800 hover:text-indigo-100 dark:hover:bg-slate-800 dark:hover:text-indigo-200"
+                                    }`}
+                                    onClick={() => {
+                                        navigate({ to: "/dashboard/admin/users" });
+                                        setUsersDropdownOpen((open) => !open);
+                                    }}
+                                >
+                                    <item.icon className="w-6 h-6" />
+                                    <span>{item.label}</span>
+                                    <button
+                                        type="button"
+                                        aria-label="Toggle users dropdown"
+                                        className={`ml-auto p-1 rounded transition-colors hover:bg-indigo-800 dark:hover:bg-slate-700`}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setUsersDropdownOpen((open) => !open);
+                                        }}
+                                    >
+                                        <svg className={`w-4 h-4 transition-transform ${usersDropdownOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                                    </button>
+                                </div>
+                                {usersDropdownOpen && (
+                                    <div className=" mt-1 flex flex-col w-full bg-indigo-950/90 dark:bg-slate-800 rounded shadow z-20">
+                                        {item.dropdown.map((d) => (
+                                            <Link
+                                                key={d.label}
+                                                to={d.to}
+                                                className={`flex items-center gap-3 px-4 py-2 rounded-lg text-base font-medium transition
+                                                    ${location.pathname === d.to
+                                                        ? "bg-indigo-900 text-indigo-200 dark:bg-indigo-700 dark:text-white"
+                                                        : "hover:bg-indigo-800 hover:text-indigo-100 dark:hover:bg-slate-800 dark:hover:text-indigo-200"
+                                                    }`}
+                                            >
+                                                {d.label}
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    }
+                    // Normal nav item
                     const isActive = location.pathname === item.to;
                     return (
                         <Link
                             key={item.label}
                             to={item.to}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition
-                ${isActive
+                                ${isActive
                                     ? "bg-indigo-900 text-indigo-200 dark:bg-indigo-700 dark:text-white"
                                     : "hover:bg-indigo-800 hover:text-indigo-100 dark:hover:bg-slate-800 dark:hover:text-indigo-200"
                                 }
-              `}
+                            `}
                         >
                             <item.icon className="w-6 h-6" />
                             {item.label}
