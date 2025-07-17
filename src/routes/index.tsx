@@ -14,7 +14,7 @@ function App() {
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a8a] dark:from-slate-950 dark:to-slate-900">
       <Header />
       {/* Hero Section */}
-      <section className="w-full py-20 px-4 flex min-h-screen flex-col md:flex-row items-center justify-between gap-8 bg-gradient-to-br from-[#0f172a] to-[#1e3a8a] dark:from-slate-950 dark:to-slate-900">
+      <section id='hero' className="w-full py-20 px-4 flex min-h-screen flex-col md:flex-row items-center justify-between gap-8 bg-gradient-to-br from-[#0f172a] to-[#1e3a8a] dark:from-slate-950 dark:to-slate-900">
         <div className="flex-1 flex flex-col gap-6 max-w-xl p-6">
           <h1 className="text-5xl md:text-6xl font-bold text-white dark:text-slate-100">
             Your Health,<br />
@@ -47,7 +47,7 @@ function App() {
       </section>
 
       {/* Role Selection */}
-      <section className="w-full bg-white dark:bg-slate-900 py-12 px-4">
+      <section id='roles' className="w-full bg-white dark:bg-slate-900 py-12 px-4">
         <h2 className="text-2xl md:text-3xl font-semibold text-center mb-8 text-slate-900 dark:text-slate-100">Choose Your Role</h2>
         <div className="flex flex-col md:flex-row gap-6 justify-center items-center max-w-4xl mx-auto">
           <Card className="flex-1 flex flex-col items-center p-8 shadow-md hover:shadow-lg transition bg-white dark:bg-slate-800">
@@ -78,7 +78,7 @@ function App() {
       </section>
 
       {/* Key Features */}
-      <section className="w-full bg-slate-50 dark:bg-slate-950 py-12 px-4">
+      <section id='features' className="w-full bg-slate-50 dark:bg-slate-950 py-12 px-4">
         <h2 className="text-2xl md:text-3xl font-semibold text-center mb-8 text-slate-900 dark:text-slate-100">Key Features</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           <Card className="p-6 flex flex-col gap-2 items-start bg-white dark:bg-slate-800">
@@ -115,7 +115,7 @@ function App() {
       </section>
 
       {/* Testimonials */}
-      <section className="w-full bg-[#0f172a] dark:bg-slate-900 py-12 px-4">
+      <section id='testimonials' className="w-full bg-[#0f172a] dark:bg-slate-900 py-12 px-4">
         <h2 className="text-2xl md:text-3xl font-semibold text-center mb-8 text-white dark:text-slate-100">What Our Users Say</h2>
         <div className="flex flex-col md:flex-row gap-6 justify-center items-center max-w-5xl mx-auto">
           <Card className="flex-1 bg-indigo-900 dark:bg-slate-800 text-white dark:text-slate-100 p-6 flex flex-col gap-4 shadow-md">
@@ -161,10 +161,12 @@ function App() {
       </section>
 
       {/* Footer */}
-      <footer className="w-full bg-[#0f172a] dark:bg-slate-950 text-slate-300 dark:text-slate-400 py-8 px-4 border-t border-slate-800 dark:border-slate-700 mt-auto">
+      <footer id='footer' className="w-full bg-[#0f172a] dark:bg-slate-950 text-slate-300 dark:text-slate-400 py-8 px-4 border-t border-slate-800 dark:border-slate-700 mt-auto">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between gap-8">
           <div>
-            <div className="font-bold text-white dark:text-slate-100 text-lg mb-2">MedDash</div>
+            <div className="font-bold text-white dark:text-slate-100 text-lg mb-2 flex flex-row">
+              <img className='w-5 h-5 mr-2 mt-1' src="public/hospital.png" alt="logo" />
+              MedDash</div>
             <div className="text-sm">Your trusted healthcare companion</div>
           </div>
           <div className="flex flex-col gap-2">
