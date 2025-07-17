@@ -11,7 +11,7 @@ export default function EditDoctorProfile() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     fullName: '',
-    licenceNumber: '',
+    licenseNumber: '',
     yearsOfExperience: 0,
     hospitalAffiliation: '',
     specializations: [] as string[],
@@ -30,7 +30,7 @@ export default function EditDoctorProfile() {
       const doctorProfile = user.profile as TDoctorProfile;
       setForm({
         fullName: `${user.firstName} ${user.lastName}`,
-        licenceNumber: doctorProfile.licenseNumber || '',
+        licenseNumber: doctorProfile.licenseNumber || '',
         yearsOfExperience: Number(doctorProfile.yearsOfExperience) || 0,
         hospitalAffiliation: doctorProfile.hospitalAffiliation || '',
         specializations: doctorProfile.specializations || [],
@@ -88,7 +88,7 @@ export default function EditDoctorProfile() {
       await updateProfile.mutateAsync({
         id: user.profile.id,
         profileData: {
-          licenceNumber: form.licenceNumber,
+          licenseNumber: form.licenseNumber,
           yearsOfExperience: form.yearsOfExperience,
           hospitalAffiliation: form.hospitalAffiliation,
           specializations: form.specializations,
@@ -150,8 +150,8 @@ export default function EditDoctorProfile() {
                 <label className="block text-sm font-medium mb-1">Medical License</label>
                 <input
                   type="text"
-                  name="licenceNumber"
-                  value={form.licenceNumber}
+                  name="licenseNumber"
+                  value={form.licenseNumber}
                   onChange={handleChange}
                   required
                   className="w-full px-3 py-2 rounded border bg-gray-50 dark:bg-slate-900 dark:text-white"
