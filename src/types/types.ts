@@ -27,11 +27,6 @@ export interface TDoctorProfile {
     hospitalAffiliation: string;
     specializations: string[];
     consultationFee: number;
-    availableDays: string[];
-    workingHours: string;
-    professionalBio: string;
-    availabilityStatus: boolean;
-    certifications: File[];
     user?: User;
 
 
@@ -40,7 +35,7 @@ export interface TDoctorProfile {
 export interface TPharmacistProfile {
     id?: string;
     pharmacyName: string;
-    licenceNumber: string;
+    licenseNumber: string;
     user?: User;
 
 
@@ -54,3 +49,4 @@ interface User {
     phoneNumber?: string;
     userRole: string;
 }
+
