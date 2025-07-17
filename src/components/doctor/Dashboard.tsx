@@ -52,7 +52,7 @@ export default function DoctorDashboard() {
             {isLoadingUser
               ? "Loading..."
               : currentUser
-              ? `Welcome back, Dr. ${currentUser.lastName}`
+              ? `Welcome back, Dr. ${currentUser.profile?.user?.lastName}`
               : "Welcome back"}
           </div>
         </div>
