@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as HealthbotRouteImport } from './routes/healthbot'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardPharmacistRouteImport } from './routes/dashboard/pharmacist'
@@ -74,6 +75,11 @@ const RegisterRoute = RegisterRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthbotRoute = HealthbotRouteImport.update({
+  id: '/healthbot',
+  path: '/healthbot',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -389,6 +395,7 @@ const DashboardAdminUsersAdminsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/healthbot': typeof HealthbotRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
@@ -447,6 +454,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/healthbot': typeof HealthbotRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/dashboard/admin/settings': typeof DashboardAdminSettingsRoute
@@ -493,6 +501,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/healthbot': typeof HealthbotRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
@@ -553,6 +562,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/healthbot'
     | '/login'
     | '/register'
     | '/dashboard/admin'
@@ -611,6 +621,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/healthbot'
     | '/login'
     | '/register'
     | '/dashboard/admin/settings'
@@ -656,6 +667,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/healthbot'
     | '/login'
     | '/register'
     | '/dashboard/admin'
@@ -715,6 +727,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  HealthbotRoute: typeof HealthbotRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
 }
@@ -733,6 +746,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/healthbot': {
+      id: '/healthbot'
+      path: '/healthbot'
+      fullPath: '/healthbot'
+      preLoaderRoute: typeof HealthbotRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1387,6 +1407,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  HealthbotRoute: HealthbotRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
 }
