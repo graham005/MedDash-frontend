@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
   CalendarIcon,
@@ -21,7 +21,7 @@ import { usePrescriptions } from '@/hooks/usePrescriptions'; // <-- FIXED
 import { usePharmacyOrders } from '@/hooks/usePharmacy';
 import { useAllAvailabilitySlots } from '@/hooks/useAvailability';
 import type { Prescription } from '@/api/prescription';
-import MedicalChat from '../MedicalChat';
+import { HealthBotChat } from '@/components/Healthbot/HealthBotChat';
 
 export default function PatientHomePage() {
   const navigate = useNavigate();
@@ -152,8 +152,36 @@ export default function PatientHomePage() {
     console.log('allOrders:', allOrders);
   }, [currentUser, allOrders]);
 
+  // Add state for HealthBot modal
+  const [showHealthBot, setShowHealthBot] = useState(false);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
+      {/* Floating HealthBot Button */}
+      <button
+        className="fixed bottom-8 right-8 z-50 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg w-16 h-16 flex items-center justify-center text-3xl"
+        onClick={() => setShowHealthBot(true)}
+        aria-label="Open HealthBot"
+      >
+        🤖
+      </button>
+
+      {/* HealthBot Modal Overlay */}
+      {showHealthBot && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="relative w-full max-w-md mx-auto">
+            <button
+              className="absolute top-2 right-2 z-10 bg-white rounded-full p-1 shadow hover:bg-gray-100"
+              onClick={() => setShowHealthBot(false)}
+              aria-label="Close HealthBot"
+            >
+              <span className="text-xl font-bold">&times;</span>
+            </button>
+            <HealthBotChat className="shadow-2xl" />
+          </div>
+        </div>
+      )}
+
       {/* Notifications Banner */}
       {notifications.length > 0 && (
         <div className="bg-blue-600 text-white px-6 py-3">
@@ -284,8 +312,6 @@ export default function PatientHomePage() {
             </CardContent>
           </Card>
         </div>
-
-        <MedicalChat />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Upcoming Appointments */}
