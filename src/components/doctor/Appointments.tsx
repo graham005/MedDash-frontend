@@ -1,26 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import {
     CalendarIcon,
     ClockIcon,
     EyeIcon,
     UserIcon,
-    PhoneIcon,
     EnvelopeIcon,
-    MapPinIcon,
-    StarIcon,
-    FunnelIcon,
     MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useDoctorAppointments } from '@/hooks/useAppointments';
-import { useCurrentUser } from '@/hooks/useAuth';
 import { useNavigate } from '@tanstack/react-router';
 import type { Appointment } from '@/api/appointments';
 
@@ -38,17 +32,6 @@ function AppointmentCard({ appointment, onViewDetails }: AppointmentCardProps) {
         const firstName = appointment.patient?.user?.firstName || '';
         const lastName = appointment.patient?.user?.lastName || '';
         return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-    };
-
-    // Generate rating (mock data since not in API)
-    const generateRating = (patientId: string) => {
-        const hash = patientId.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-        return (4.0 + (hash % 10) / 10).toFixed(1);
-    };
-
-    const generateReviewCount = (patientId: string) => {
-        const hash = patientId.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-        return 15 + (hash % 200);
     };
 
     // Get status badge color
@@ -69,7 +52,6 @@ function AppointmentCard({ appointment, onViewDetails }: AppointmentCardProps) {
 
     // Get availability status
     const getAvailabilityStatus = () => {
-        const now = new Date();
         if (isPast(startTime)) {
             return { text: 'Past appointment', color: 'text-gray-500 dark:text-gray-400' };
         } else if (isToday(startTime)) {
@@ -168,7 +150,6 @@ export default function DoctorAppointments() {
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [dateFilter, setDateFilter] = useState<string>('all');
 
-    const { data: currentUser } = useCurrentUser();
     const { data: appointments = [], isLoading, error } = useDoctorAppointments();
     const navigate = useNavigate();
 

@@ -1,9 +1,9 @@
+import { useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { 
-  CalendarIcon, 
-  ClockIcon, 
-  UserIcon, 
-  EnvelopeIcon, 
+import {
+  CalendarIcon,
+  ClockIcon,
+  EnvelopeIcon,
   PhoneIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
@@ -12,11 +12,12 @@ import {
   DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useDoctorAppointmentById, useUpdateAppointmentStatus } from '@/hooks/useAppointments';
 import { useNavigate } from '@tanstack/react-router';
+import MessagingModal from '@/components/messaging/MessagingModal';
 
 interface AppointmentDetailsProps {
   appointmentId: string;
@@ -26,6 +27,9 @@ export default function AppointmentDetails({ appointmentId }: AppointmentDetails
   const navigate = useNavigate();
   const { data: appointment, isLoading, error } = useDoctorAppointmentById(appointmentId);
   const { mutate: updateStatus, isPending: isUpdatingStatus } = useUpdateAppointmentStatus();
+
+  // Messaging modal state
+  const [isMessagingOpen, setIsMessagingOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -84,8 +88,29 @@ export default function AppointmentDetails({ appointmentId }: AppointmentDetails
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
+  const handleOpenMessaging = () => {
+    setIsMessagingOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 transition-colors">
+      {/* Messaging Modal */}
+      <MessagingModal
+        isOpen={isMessagingOpen}
+        onClose={() => setIsMessagingOpen(false)}
+        context="appointment"
+        conversationId={appointmentId}
+        participantName={`${appointment.patient?.user?.firstName} ${appointment.patient?.user?.lastName}`}
+        participantRole="patient"
+        appointmentDetails={{
+          startTime,
+          endTime,
+          status: appointment.status || 'booked',
+          reasonForVisit: appointment.reasonForVisit || ''
+        }}
+        receiverId={appointment.patient.user.id}
+      />
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
@@ -97,7 +122,7 @@ export default function AppointmentDetails({ appointmentId }: AppointmentDetails
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
             Back to Appointments
           </Button>
-          
+
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
@@ -107,7 +132,7 @@ export default function AppointmentDetails({ appointmentId }: AppointmentDetails
                 {format(startTime, 'EEEE, MMMM d, yyyy')} at {format(startTime, 'h:mm a')}
               </p>
             </div>
-            
+
             <Badge className={cn('text-sm font-medium px-3 py-1', getStatusColor(appointment.status || 'booked'))}>
               {appointment.status || 'booked'}
             </Badge>
@@ -212,6 +237,7 @@ export default function AppointmentDetails({ appointmentId }: AppointmentDetails
                 </Button>
               </CardContent>
             </Card> */}
+
           </div>
 
           {/* Actions Sidebar */}
@@ -259,6 +285,7 @@ export default function AppointmentDetails({ appointmentId }: AppointmentDetails
                 )}
 
                 <Button
+                  onClick={handleOpenMessaging}
                   variant="outline"
                   className="w-full border-gray-300 dark:border-slate-600"
                 >

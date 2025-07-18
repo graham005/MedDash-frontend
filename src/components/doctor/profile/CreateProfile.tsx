@@ -78,11 +78,6 @@ export default function CreateDoctorProfile() {
                 hospitalAffiliation: form.hospitalAffiliation,
                 specializations: form.specializations,
                 consultationFee: form.consultationFee,
-                availableDays: form.availableDays,
-                workingHours: form.workingHours,
-                professionalBio: form.professionalBio,
-                availabilityStatus,
-                certifications: form.certifications,
             });
             navigate({ to: '/dashboard/doctor/profile' });
         } catch (err: any) {
