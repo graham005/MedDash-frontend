@@ -1,6 +1,8 @@
-import axios, { type AxiosResponse } from 'axios';
+import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { API_URL } from './url';
+import { isTokenExpired, shouldRefreshToken } from '@/utils/tokenUtils';
 import type { TDoctorProfile, TPatientProfile, TPharmacistProfile, TSignIn, TSignUp } from '@/types/types';
+import { apiClient } from './apiClient';
 
 // Enhanced response types based on backend
 interface AuthResponse {
@@ -16,7 +18,6 @@ interface SignUpResponse {
   phoneNumber?: string;
   userRole: string;
 }
-
 
 interface UserResponse {
   id: string;
@@ -49,7 +50,7 @@ interface ProfileResponse {
   consultationFee: number;
 }
 
-// Create axios instance with default config
+// Create axios instance with enhanced token management
 const authApi = axios.create({
   baseURL: API_URL,
   headers: {
@@ -58,198 +59,27 @@ const authApi = axios.create({
   timeout: 10000,
 });
 
-// Request interceptor to add auth token
-authApi.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Flag to prevent multiple refresh attempts
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: string) => void;
+  reject: (error: any) => void;
+}> = [];
+
+// Process failed queue after refresh
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token!);
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor to handle token refresh - FIXED
-authApi.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        // Get user ID from token or storage
-        const token = localStorage.getItem('accessToken');
-        let userId = null;
-
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            userId = payload.sub;
-          } catch (e) {
-            console.error('Error parsing token:', e);
-          }
-        }
-
-        if (refreshToken && userId) {
-          // Backend expects user context, id, and refreshToken as query params
-          const response = await axios.get(`${API_URL}/auth/refresh?id=${userId}&refreshToken=${refreshToken}`, {
-            headers: {
-              'Authorization': `Bearer ${refreshToken}`
-            }
-          });
-
-          const { accessToken } = response.data;
-          localStorage.setItem('accessToken', accessToken);
-
-          // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-          return authApi(originalRequest);
-        }
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-// Auth API functions
-export const loginUser = async (loginData: TSignIn): Promise<AuthResponse> => {
-  try {
-    // Direct axios POST instead of apiClient.publicRequest
-    const response: AxiosResponse<AuthResponse> = await axios.post(`${API_URL}/auth/signin`, loginData);
-
-    // Store tokens directly in localStorage
-    const { accessToken, refreshToken } = response.data;
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
-
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 401) {
-      throw new Error('Invalid credentials. Please check your email and password.');
-    } else if (error.response?.status === 403) {
-      throw new Error('Account is disabled. Please contact support.');
-    } else if (error.response?.status >= 500) {
-      throw new Error('Server error. Please try again later.');
-    }
-    throw new Error('Login failed. Please check your credentials.');
-  }
+  });
+  failedQueue = [];
 };
 
-export const logoutUser = async (): Promise<void> => {
-  try {
-    // Get userId from token directly
-    const userId = getUserIdFromToken();
 
-    if (userId) {
-      await axios.get(`${API_URL}/auth/signout/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
-    }
-
-    // Clear tokens directly
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-  } catch (error: any) {
-    // Clear tokens even if logout API fails
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    throw new Error('Logout failed. Please try again.');
-  }
-};
-
-export const signupUser = async (signUpData: TSignUp): Promise<SignUpResponse> => {
-  try {
-    const response: AxiosResponse<SignUpResponse> = await axios.post(`${API_URL}/auth/signup`, signUpData);
-    // Note: Signup doesn't return tokens, only user data
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 409) {
-      throw new Error('Email already exists. Please use a different email.');
-    } else if (error.response?.status === 400) {
-      throw new Error('Invalid data. Please check your information.');
-    } else if (error.response?.status >= 500) {
-      throw new Error('Server error. Please try again later.');
-    }
-    throw new Error('Signup failed. Please try again.');
-  }
-};
-
-// Profile creation functions - FIXED to match backend
-export const createDoctorProfile = async (profileData: TDoctorProfile): Promise<ProfileResponse> => {
-  try {
-    const response: AxiosResponse<ProfileResponse> = await axios.post(`${API_URL}/auth/doctor/profile`, profileData, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-      },
-    });
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 400) {
-      throw new Error('Invalid profile data. Please check your information.');
-    } else if (error.response?.status === 409) {
-      throw new Error('Doctor profile already exists for this user.');
-    } else if (error.response?.status >= 500) {
-      throw new Error('Server error. Please try again later.');
-    }
-    throw new Error('Creating doctor profile failed. Please try again.');
-  }
-};
-
-export const createPatientProfile = async (profileData: TPatientProfile): Promise<ProfileResponse> => {
-  try {
-    const response: AxiosResponse<ProfileResponse> = await axios.post(`${API_URL}/auth/patient/profile`, profileData, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-      },
-    });
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 400) {
-      throw new Error('Invalid profile data. Please check your information.');
-    } else if (error.response?.status === 409) {
-      throw new Error('Patient profile already exists for this user.');
-    } else if (error.response?.status >= 500) {
-      throw new Error('Server error. Please try again later.');
-    }
-    throw new Error('Creating patient profile failed. Please try again.');
-  }
-};
-
-export const createPharmacistProfile = async (profileData: TPharmacistProfile): Promise<ProfileResponse> => {
-  try {
-    const response: AxiosResponse<ProfileResponse> = await axios.post(`${API_URL}/auth/pharmacist/profile`, profileData, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-      },
-    });
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 400) {
-      throw new Error('Invalid profile data. Please check your information.');
-    } else if (error.response?.status === 409) {
-      throw new Error('Pharmacist profile already exists for this user.');
-    } else if (error.response?.status >= 500) {
-      throw new Error('Server error. Please try again later.');
-    }
-    throw new Error('Creating pharmacist profile failed. Please try again.');
-  }
-};
-
-// Token refresh function - FIXED
+// Token refresh function - SINGLE DECLARATION
 export const refreshAuthToken = async (): Promise<string> => {
   try {
     const refreshToken = localStorage.getItem('refreshToken');
@@ -271,6 +101,7 @@ export const refreshAuthToken = async (): Promise<string> => {
       throw new Error('User ID not found in token');
     }
 
+    // Use vanilla axios to avoid interceptor loops
     const response: AxiosResponse<AuthResponse> = await axios.get(
       `${API_URL}/auth/refresh?id=${userId}&refreshToken=${refreshToken}`,
       {
@@ -282,7 +113,6 @@ export const refreshAuthToken = async (): Promise<string> => {
 
     const { accessToken } = response.data;
     localStorage.setItem('accessToken', accessToken);
-
     return accessToken;
   } catch (error: any) {
     localStorage.removeItem('accessToken');
@@ -291,13 +121,199 @@ export const refreshAuthToken = async (): Promise<string> => {
   }
 };
 
+// Enhanced request interceptor with token refresh
+
+// ... (your refreshAuthToken function)
+
+authApi.interceptors.request.use(
+  async (config: InternalAxiosRequestConfig) => {
+    const token = localStorage.getItem('accessToken');
+
+    if (token && isTokenExpired(token)) { // Use isTokenExpired for interceptor
+      console.log('Token expired, attempting refresh...');
+
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const newToken = await refreshAuthToken();
+          localStorage.setItem('accessToken', newToken);
+          config.headers.Authorization = `Bearer ${newToken}`;
+          processQueue(null, newToken);
+        } catch (error) {
+          processQueue(error, null);
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          window.location.href = '/login';
+          throw error;
+        } finally {
+          isRefreshing = false;
+        }
+      } else {
+        // If already refreshing, queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token: unknown) => {
+          config.headers.Authorization = `Bearer ${token as string}`;
+          return config;
+        });
+      }
+    } else if (token) { // Ensure token is always set if available and not expired
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor looks generally fine for 401 handling
+// but ensure it also checks isRefreshing
+authApi.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      if (!isRefreshing) { // Crucial check
+        isRefreshing = true;
+        try {
+          const newToken = await refreshAuthToken();
+          localStorage.setItem('accessToken', newToken);
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          processQueue(null, newToken);
+          return authApi(originalRequest);
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
+      } else {
+        // Queue the request if already refreshing
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token: unknown) => {
+          originalRequest.headers.Authorization = `Bearer ${token as string}`;
+          return authApi(originalRequest);
+        }).catch((err) => {
+          return Promise.reject(err);
+        });
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Auth API functions using authApi with automatic token refresh
+export const loginUser = async (loginData: TSignIn): Promise<AuthResponse> => {
+  try {
+    const response: AxiosResponse<AuthResponse> = await axios.post(`${API_URL}/auth/signin`, loginData);
+    const { accessToken, refreshToken } = response.data;
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 401) {
+      throw new Error('Invalid credentials. Please check your email and password.');
+    } else if (error.response?.status === 403) {
+      throw new Error('Account is disabled. Please contact support.');
+    } else if (error.response?.status >= 500) {
+      throw new Error('Server error. Please try again later.');
+    }
+    throw new Error('Login failed. Please check your credentials.');
+  }
+};
+
+export const logoutUser = async (): Promise<void> => {
+  try {
+    const userId = getUserIdFromToken();
+    if (userId) {
+      await authApi.get(`/auth/signout/${userId}`);
+    }
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+  } catch (error: any) {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    throw new Error('Logout failed. Please try again.');
+  }
+};
+
+export const signupUser = async (signUpData: TSignUp): Promise<SignUpResponse> => {
+  try {
+    const response: AxiosResponse<SignUpResponse> = await axios.post(`${API_URL}/auth/signup`, signUpData);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 409) {
+      throw new Error('Email already exists. Please use a different email.');
+    } else if (error.response?.status === 400) {
+      throw new Error('Invalid data. Please check your information.');
+    } else if (error.response?.status >= 500) {
+      throw new Error('Server error. Please try again later.');
+    }
+    throw new Error('Signup failed. Please try again.');
+  }
+};
+
+// Profile creation functions using authApi with automatic token refresh
+export const createDoctorProfile = async (profileData: TDoctorProfile): Promise<ProfileResponse> => {
+  try {
+    const response: AxiosResponse<ProfileResponse> = await authApi.post(`/auth/doctor/profile`, profileData);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 400) {
+      throw new Error('Invalid profile data. Please check your information.');
+    } else if (error.response?.status === 409) {
+      throw new Error('Doctor profile already exists for this user.');
+    } else if (error.response?.status >= 500) {
+      throw new Error('Server error. Please try again later.');
+    }
+    throw new Error('Creating doctor profile failed. Please try again.');
+  }
+};
+
+export const createPatientProfile = async (profileData: TPatientProfile): Promise<ProfileResponse> => {
+  try {
+    const response: AxiosResponse<ProfileResponse> = await authApi.post(`/auth/patient/profile`, profileData);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 400) {
+      throw new Error('Invalid profile data. Please check your information.');
+    } else if (error.response?.status === 409) {
+      throw new Error('Patient profile already exists for this user.');
+    } else if (error.response?.status >= 500) {
+      throw new Error('Server error. Please try again later.');
+    }
+    throw new Error('Creating patient profile failed. Please try again.');
+  }
+};
+
+export const createPharmacistProfile = async (profileData: TPharmacistProfile): Promise<ProfileResponse> => {
+  try {
+    const response: AxiosResponse<ProfileResponse> = await authApi.post(`/auth/pharmacist/profile`, profileData);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 400) {
+      throw new Error('Invalid profile data. Please check your information.');
+    } else if (error.response?.status === 409) {
+      throw new Error('Pharmacist profile already exists for this user.');
+    } else if (error.response?.status >= 500) {
+      throw new Error('Server error. Please try again later.');
+    }
+    throw new Error('Creating pharmacist profile failed. Please try again.');
+  }
+};
+
 export const getCurrentUser = async (): Promise<UserResponse> => {
   try {
-    const response: AxiosResponse<UserResponse> = await axios.get(`${API_URL}/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-      },
-    });
+    const response: AxiosResponse<UserResponse> = await authApi.get(`/auth/me`);
     return response.data;
   } catch (error: any) {
     if (error.response?.status === 401) {
@@ -307,32 +323,11 @@ export const getCurrentUser = async (): Promise<UserResponse> => {
   }
 };
 
-// Password update function - FIXED
 export const updatePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
   try {
-    const token = localStorage.getItem('accessToken');
-    let userId = null;
-
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        userId = payload.sub;
-      } catch (e) {
-        throw new Error('Invalid token format');
-      }
-    }
-
-    if (!userId) {
-      throw new Error('User ID not found');
-    }
-
-    await axios.patch(`${API_URL}/auth/change-password`, {
+    await authApi.patch(`/auth/change-password`, {
       currentPassword,
       newPassword,
-    }, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-      },
     });
   } catch (error: any) {
     if (error.response?.status === 400) {
@@ -344,7 +339,6 @@ export const updatePassword = async (currentPassword: string, newPassword: strin
   }
 };
 
-// These functions might not exist in backend - you may need to implement them
 export const requestPasswordReset = async (email: string): Promise<void> => {
   try {
     await axios.post(`${API_URL}/auth/forgot-password`, { email });
@@ -370,6 +364,64 @@ export const resetPassword = async (token: string, newPassword: string): Promise
   }
 };
 
+export const updateProfile = async (
+  role: 'patient' | 'doctor' | 'pharmacist' | 'admin',
+  id: string,
+  profileData: any
+): Promise<any> => {
+  try {
+    let endpoint = '';
+    switch (role) {
+      case 'patient':
+        endpoint = `/auth/patient/profile/${id}`;
+        break;
+      case 'doctor':
+        endpoint = `/auth/doctor/profile/${id}`;
+        break;
+      case 'pharmacist':
+        endpoint = `/auth/pharmacist/profile/${id}`;
+        break;
+      case 'admin':
+        endpoint = `/auth/admin/profile/${id}`;
+        break;
+      default:
+        throw new Error('Invalid role');
+    }
+    const response: AxiosResponse<any> = await authApi.patch(endpoint, profileData);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || 'Profile update failed.');
+  }
+};
+
+export const createAdminProfile = async (profileData: { department: string }): Promise<any> => {
+  try {
+    const response: AxiosResponse<any> = await authApi.post(`/auth/admin/profile`, profileData);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 400) {
+      throw new Error('Invalid profile data. Please check your information.');
+    } else if (error.response?.status === 409) {
+      throw new Error('Admin profile already exists for this user.');
+    } else if (error.response?.status >= 500) {
+      throw new Error('Server error. Please try again later.');
+    }
+    throw new Error('Creating admin profile failed. Please try again.');
+  }
+};
+
+export const getProfile = async (): Promise<any> => {
+  try {
+    const response: AxiosResponse<any> = await authApi.get(`/auth/profile`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 401) {
+      throw new Error('Authentication required. Please login.');
+    }
+    throw new Error('Failed to get profile information.');
+  }
+};
+
 // Auth state management helpers
 export const isAuthenticated = (): boolean => {
   const token = localStorage.getItem('accessToken');
@@ -392,7 +444,6 @@ export const getUserRole = (): string | null => {
 
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    // Backend uses 'role' in JWT payload
     return payload.role || null;
   } catch {
     return null;
@@ -404,13 +455,11 @@ export const clearAuthTokens = (): void => {
   localStorage.removeItem('refreshToken');
 };
 
-// Helper function to decode JWT and extract user ID
 export const getUserIdFromToken = (token?: string): string | null => {
   try {
     const accessToken = token || localStorage.getItem('accessToken');
     if (!accessToken) return null;
 
-    // Decode JWT payload (base64 decode the middle part)
     const base64Url = accessToken.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     const jsonPayload = decodeURIComponent(
@@ -421,89 +470,9 @@ export const getUserIdFromToken = (token?: string): string | null => {
     );
 
     const payload = JSON.parse(jsonPayload);
-    return payload.sub || payload.userId || payload.id || null; // Common JWT user ID fields
+    return payload.sub || payload.userId || payload.id || null;
   } catch (error) {
     console.error('Error decoding token:', error);
     return null;
-  }
-};
-
-// Update Profile (for patient, doctor, pharmacist, admin)
-export const updateProfile = async (
-  role: 'patient' | 'doctor' | 'pharmacist' | 'admin',
-  id: string,
-  profileData: any // Use the correct DTO type for each role if available
-): Promise<any> => {
-  try {
-    let endpoint = '';
-    switch (role) {
-      case 'patient':
-        endpoint = `/auth/patient/profile/${id}`;
-        break;
-      case 'doctor':
-        endpoint = `/auth/doctor/profile/${id}`;
-        break;
-      case 'pharmacist':
-        endpoint = `/auth/pharmacist/profile/${id}`;
-        break;
-      case 'admin':
-        endpoint = `/auth/admin/profile/${id}`;
-        break;
-      default:
-        throw new Error('Invalid role');
-    }
-    const response: AxiosResponse<any> = await axios.patch(
-      `${API_URL}${endpoint}`,
-      profileData,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      }
-    );
-    return response.data;
-  } catch (error: any) {
-    throw new Error(error.response?.data?.message || 'Profile update failed.');
-  }
-};
-
-// Create Admin Profile
-export const createAdminProfile = async (profileData: { department: string }): Promise<any> => {
-  try {
-    const response: AxiosResponse<any> = await axios.post(
-      `${API_URL}/auth/admin/profile`,
-      profileData,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      }
-    );
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 400) {
-      throw new Error('Invalid profile data. Please check your information.');
-    } else if (error.response?.status === 409) {
-      throw new Error('Admin profile already exists for this user.');
-    } else if (error.response?.status >= 500) {
-      throw new Error('Server error. Please try again later.');
-    }
-    throw new Error('Creating admin profile failed. Please try again.');
-  }
-};
-
-export const getProfile = async (): Promise<any> => {
-  try {
-    const response: AxiosResponse<any> = await axios.get(`${API_URL}/auth/profile`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-      },
-    });
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 401) {
-      throw new Error('Authentication required. Please login.');
-    }
-    throw new Error('Failed to get profile information.');
   }
 };

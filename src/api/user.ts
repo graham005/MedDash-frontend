@@ -1,6 +1,5 @@
 import { UserRole, UserStatus } from "@/types/enums";
-import { API_URL } from "./url";
-import axios from 'axios';
+import { apiClient } from './apiClient'; 
 
 // Types matching your backend
 export interface User {
@@ -37,56 +36,42 @@ export interface UserWithProfile extends User {
   profileRole?: string;
 }
 
-// Create axios instance with auth
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 // User API functions
 export const userAPI = {
   // Create a new user (Admin only)
   createUser: async (userData: CreateUserDto): Promise<User> => {
-    const response = await api.post('/users', userData);
+    const response = await apiClient.post('/users', userData);
     return response.data;
   },
 
   // Get all users with optional role filter (Admin only)
   getAllUsers: async (userRole?: UserRole): Promise<User[]> => {
     const params = userRole ? { userRole } : {};
-    const response = await api.get('/users', { params });
+    const response = await apiClient.get('/users', { params });
     return response.data;
   },
 
   // Get user by ID (Admin only)
   getUserById: async (id: string): Promise<User> => {
-    const response = await api.get(`/users/${id}`);
+    const response = await apiClient.get(`/users/${id}`);
     return response.data;
   },
 
   // Update user (Admin only)
   updateUser: async (id: string, userData: UpdateUserDto): Promise<User> => {
-    const response = await api.patch(`/users/${id}`, userData);
+    const response = await apiClient.patch(`/users/${id}`, userData);
     return response.data;
   },
 
   // Delete user (Admin only)
   deleteUser: async (id: string): Promise<{ message: string }> => {
-    const response = await api.delete(`/users/${id}`);
+    const response = await apiClient.delete(`/users/${id}`);
     return response.data;
   },
 
   // Get all users with their profiles (Admin only)
   getAllProfiles: async (): Promise<UserWithProfile[]> => {
-    const response = await api.get('/users/getAllProfiles');
+    const response = await apiClient.get('/users/getAllProfiles');
     return response.data;
   },
 };

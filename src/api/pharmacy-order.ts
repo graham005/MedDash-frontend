@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { apiClient } from './apiClient';
 import { API_URL } from './url';
 
 export interface CreatePharmacyOrderDto {
@@ -70,11 +70,7 @@ export const pharmacyOrderApi = {
   // Create pharmacy order (Pharmacist only)
   createPharmacyOrder: async (orderData: CreatePharmacyOrderDto): Promise<PharmacyOrder> => {
     try {
-      const response = await axios.post(`${API_URL}/pharmacy-order`, orderData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      const response = await apiClient.post(`${API_URL}/pharmacy-order`, orderData);
       return response.data;
     } catch (error: any) {
       console.error('Error creating pharmacy order:', error);
@@ -92,11 +88,7 @@ export const pharmacyOrderApi = {
   // Get all pharmacy orders for logged-in pharmacist
   getAllPharmacyOrders: async (): Promise<PharmacyOrder[]> => {
     try {
-      const response = await axios.get(`${API_URL}/pharmacy-order`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      const response = await apiClient.get(`${API_URL}/pharmacy-order`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching pharmacy orders:', error);
@@ -110,11 +102,7 @@ export const pharmacyOrderApi = {
   // Get pharmacy order by ID
   getPharmacyOrderById: async (id: string): Promise<PharmacyOrder> => {
     try {
-      const response = await axios.get(`${API_URL}/pharmacy-order/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      const response = await apiClient.get(`${API_URL}/pharmacy-order/${id}`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching pharmacy order:', error);
@@ -128,11 +116,7 @@ export const pharmacyOrderApi = {
   // Update pharmacy order status
   updatePharmacyOrder: async (id: string, updateData: UpdatePharmacyOrderDto): Promise<PharmacyOrder> => {
     try {
-      const response = await axios.patch(`${API_URL}/pharmacy-order/${id}`, updateData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      const response = await apiClient.patch(`${API_URL}/pharmacy-order/${id}`, updateData);
       return response.data;
     } catch (error: any) {
       console.error('Error updating pharmacy order:', error);
@@ -150,11 +134,7 @@ export const pharmacyOrderApi = {
   // Cancel pharmacy order (sets status to CANCELLED)
   cancelPharmacyOrder: async (id: string): Promise<PharmacyOrder> => {
     try {
-      const response = await axios.delete(`${API_URL}/pharmacy-order/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      const response = await apiClient.delete(`${API_URL}/pharmacy-order/${id}`);
       return response.data;
     } catch (error: any) {
       console.error('Error canceling pharmacy order:', error);

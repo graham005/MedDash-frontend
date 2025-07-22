@@ -1,13 +1,4 @@
-import { API_URL } from './url';
-import axios, { type AxiosRequestConfig } from 'axios';
-
-const api = axios.create({ baseURL: API_URL });
-
-// Helper to get auth headers - FIXED
-const getAuthHeaders = (): AxiosRequestConfig['headers'] => {
-    const token = localStorage.getItem('accessToken'); 
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import { apiClient } from './apiClient';
 
 export interface CreatePaymentDto {
     fullName: string;
@@ -48,64 +39,48 @@ export interface PaymentInitializeResponse {
 export const paymentsAPI = {
     // Initialize payment
     initializePayment: async (paymentData: CreatePaymentDto): Promise<PaymentInitializeResponse> => {
-        const response = await api.post('/payments/initialize', paymentData, {
-            headers: getAuthHeaders(),
-        });
+        const response = await apiClient.post('/payments/initialize', paymentData);
         return response.data;
     },
 
     // Verify payment
     verifyPayment: async (reference: string): Promise<any> => {
-        const response = await api.post(`/payments/verify/${reference}`, {}, {
-            headers: getAuthHeaders(),
-        });
+        const response = await apiClient.post(`/payments/verify/${reference}`);
         return response.data;
     },
 
     // Get all payments for user
     getPayments: async (): Promise<Payment[]> => {
-        const response = await api.get('/payments', {
-            headers: getAuthHeaders(),
-        });
+        const response = await apiClient.get('/payments');
         return response.data;
     },
 
     // Get payment by ID
     getPaymentById: async (id: string): Promise<Payment> => {
-        const response = await api.get(`/payments/${id}`, {
-            headers: getAuthHeaders(),
-        });
+        const response = await apiClient.get(`/payments/${id}`);
         return response.data;
     },
 
     // Cancel payment
     cancelPayment: async (id: string): Promise<Payment> => {
-        const response = await api.patch(`/payments/${id}/cancel`, {}, {
-            headers: getAuthHeaders(),
-        });
+        const response = await apiClient.patch(`/payments/${id}/cancel`);
         return response.data;
     },
 
     // Refund payment (admin only)
     refundPayment: async (id: string): Promise<Payment> => {
-        const response = await api.post(`/payments/${id}/refund`, {}, {
-            headers: getAuthHeaders(),
-        });
+        const response = await apiClient.post(`/payments/${id}/refund`);
         return response.data;
     },
 
     // Update payment
     updatePayment: async (id: string, updateData: Partial<CreatePaymentDto>): Promise<Payment> => {
-        const response = await api.patch(`/payments/${id}`, updateData, {
-            headers: getAuthHeaders(),
-        });
+        const response = await apiClient.patch(`/payments/${id}`, updateData);
         return response.data;
     },
 
     // Delete payment
     deletePayment: async (id: string): Promise<void> => {
-        await api.delete(`/payments/${id}`, {
-            headers: getAuthHeaders(),
-        });
+        await apiClient.delete(`/payments/${id}`);
     }
 };

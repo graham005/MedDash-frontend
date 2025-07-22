@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { apiClient } from './apiClient';
 import { API_URL } from './url';
 
 export interface CreateMedicineDto {
@@ -44,11 +44,7 @@ export const medicineApi = {
   // Create medicine (Pharmacist only)
   createMedicine: async (medicineData: CreateMedicineDto): Promise<Medicine> => {
     try {
-      const response = await axios.post(`${API_URL}/medicine`, medicineData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      const response = await apiClient.post(`${API_URL}/medicine`, medicineData);
       return response.data;
     } catch (error: any) {
       console.error('Error creating medicine:', error);
@@ -66,11 +62,7 @@ export const medicineApi = {
   // Get all medicines for logged-in pharmacist
   getAllMedicines: async (): Promise<Medicine[]> => {
     try {
-      const response = await axios.get(`${API_URL}/medicine`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      const response = await apiClient.get(`${API_URL}/medicine`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching medicines:', error);
@@ -84,11 +76,7 @@ export const medicineApi = {
   // Get medicine by ID
   getMedicineById: async (id: string): Promise<Medicine> => {
     try {
-      const response = await axios.get(`${API_URL}/medicine/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      const response = await apiClient.get(`${API_URL}/medicine/${id}`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching medicine:', error);
@@ -102,11 +90,7 @@ export const medicineApi = {
   // Update medicine
   updateMedicine: async (id: string, updateData: UpdateMedicineDto): Promise<Medicine> => {
     try {
-      const response = await axios.patch(`${API_URL}/medicine/${id}`, updateData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      const response = await apiClient.patch(`${API_URL}/medicine/${id}`, updateData);
       return response.data;
     } catch (error: any) {
       console.error('Error updating medicine:', error);
@@ -124,11 +108,7 @@ export const medicineApi = {
   // Delete medicine
   deleteMedicine: async (id: string): Promise<void> => {
     try {
-      await axios.delete(`${API_URL}/medicine/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      await apiClient.delete(`${API_URL}/medicine/${id}`);
     } catch (error: any) {
       console.error('Error deleting medicine:', error);
       if (error.response?.status === 404) {

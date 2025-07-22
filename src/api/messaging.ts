@@ -1,4 +1,5 @@
-import {api} from './url';
+import { apiClient } from './apiClient';
+import { API_URL } from './url';
 
 export interface CreateMessageDto {
   content: string;
@@ -64,13 +65,13 @@ export interface ConversationMessagesResponseDto {
 export const messagingAPI = {
   // Send a message
   sendMessage: async (messageData: CreateMessageDto): Promise<MessageResponseDto> => {
-    const response = await api.post('/messaging', messageData);
+    const response = await apiClient.post(`${API_URL}/messaging`, messageData);
     return response.data;
   },
 
   // Get user conversations
   getUserConversations: async (): Promise<ConversationsResponseDto> => {
-    const response = await api.get('/messaging/conversations');
+    const response = await apiClient.get(`${API_URL}/messaging/conversations`);
     return response.data;
   },
 
@@ -81,7 +82,7 @@ export const messagingAPI = {
     page: number = 1,
     limit: number = 50
   ): Promise<ConversationMessagesResponseDto> => {
-    const response = await api.get(`/messaging/conversations/${context}/${conversationId}`, {
+    const response = await apiClient.get(`${API_URL}/messaging/conversations/${context}/${conversationId}`, {
       params: { page, limit }
     });
     return response.data;
