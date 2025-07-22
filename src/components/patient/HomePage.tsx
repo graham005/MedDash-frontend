@@ -22,10 +22,11 @@ import { usePharmacyOrders } from '@/hooks/usePharmacy';
 import { useAllAvailabilitySlots } from '@/hooks/useAvailability';
 import type { Prescription } from '@/api/prescription';
 import { HealthBotChat } from '@/components/Healthbot/HealthBotChat';
+import CreatePatientProfileModal from './profile/CreateProfile';
 
 export default function PatientHomePage() {
   const navigate = useNavigate();
-  const { data: currentUser } = useCurrentUser();
+  const { data: currentUser, isLoading } = useCurrentUser();
 
   const { data: appointments = [] } = usePatientAppointments();
   const { data: prescriptions = [] } = usePrescriptions(); // <-- FIXED
@@ -147,13 +148,26 @@ export default function PatientHomePage() {
     }
   };
 
-  useEffect(() => {
-    console.log('currentUser:', currentUser);
-    console.log('allOrders:', allOrders);
-  }, [currentUser, allOrders]);
-
   // Add state for HealthBot modal
   const [showHealthBot, setShowHealthBot] = useState(false);
+
+  // Profile creation modal state
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // useEffect(() => {
+  //   // Check if user needs to create a profile
+  //   if (currentUser && (!currentUser.profile || Object.keys(currentUser.profile).length === 0)) {
+  //     setShowProfileModal(true);
+  //   }
+  // }, [currentUser]);
+
+  const closeProfileModal = () => {
+    setShowProfileModal(false);
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
@@ -552,6 +566,12 @@ export default function PatientHomePage() {
             <PlusIcon className="w-6 h-6" />
           </Button>
         </div>
+
+        {/* Profile creation modal */}
+        <CreatePatientProfileModal 
+          isOpen={showProfileModal} 
+          onClose={closeProfileModal} 
+        />
       </div>
     </div>
   );

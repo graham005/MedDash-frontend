@@ -355,6 +355,7 @@ export default function AppointmentPage() {
                           )
                         )}
                         {/* Message Doctor Button */}
+                        { appointment.status !== 'cancelled' && (
                         <button
                           onClick={() => handleOpenMessaging(appointment)}
                           className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-sm hover:bg-blue-50 transition-colors flex items-center gap-2"
@@ -362,6 +363,7 @@ export default function AppointmentPage() {
                           <ChatBubbleLeftRightIcon className="w-4 h-4" />
                           Message
                         </button>
+                        )}
                         {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
                           <button
                             onClick={() => handleCancelAppointment(appointment.id)}
@@ -470,6 +472,7 @@ export default function AppointmentPage() {
                           {status.label}
                         </span>
                         {/* Message Doctor Button for past appointments */}
+                        {appointment.status !== 'cancelled' && (
                         <button
                           onClick={() => handleOpenMessaging(appointment)}
                           className="px-4 py-2 border border-gray-400 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
@@ -477,6 +480,7 @@ export default function AppointmentPage() {
                           <ChatBubbleLeftRightIcon className="w-4 h-4" />
                           Message
                         </button>
+                        )}
                       </div>
                     </div>
                   );
