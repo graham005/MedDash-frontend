@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { useCreatePharmacistProfile } from '@/hooks/useAuth';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from '@tanstack/react-router';
+import { X } from 'lucide-react';
 
-export default function CreatePharmacistProfile() {
+interface CreateProfileModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function CreatePharmacistProfileModal({ isOpen, onClose }: CreateProfileModalProps) {
   const [form, setForm] = useState({
     pharmacyName: '',
     licenseNumber: '',
@@ -25,28 +30,46 @@ export default function CreatePharmacistProfile() {
         pharmacyName: form.pharmacyName,
         licenseNumber: form.licenseNumber,
       });
+      onClose(); // Close modal after successful creation
       navigate({ to: '/dashboard/pharmacist/profile' });
     } catch (err: any) {
       setError(err.message || 'Failed to create profile');
     }
   };
 
+  // Handle backdrop click to close the modal
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  // If the modal is not open, don't render anything
+  if (!isOpen) return null;
+
   return (
-    <div className="min-h-screen bg-[#F5F7FD] dark:bg-slate-950 py-10 px-2 flex flex-col items-center">
-      {/* Top Bar */}
-      <div className="w-full max-w-3xl bg-[#021373] dark:bg-[#010626] px-8 py-5 flex items-center justify-between rounded-t-lg shadow">
-        <div>
-          <div className="font-bold text-white text-lg">Pharmacist Profile Editor</div>
-          <div className="text-sm text-[#C7D2FE] dark:text-[#8491D9]">Manage your pharmacy profile</div>
+    <div 
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" 
+      onClick={handleBackdropClick}
+    >
+      <div className="w-full max-w-3xl bg-white dark:bg-slate-800 rounded-lg shadow-xl">
+        {/* Modal Header */}
+        <div className="bg-[#021373] dark:bg-[#010626] px-8 py-5 flex items-center justify-between rounded-t-lg">
+          <div>
+            <div className="font-bold text-white text-lg">Pharmacist Profile Setup</div>
+            <div className="text-sm text-[#C7D2FE] dark:text-[#8491D9]">Complete your pharmacy details</div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="text-white hover:text-gray-200"
+            aria-label="Close modal"
+          >
+            <X size={20} />
+          </button>
         </div>
-      </div>
-      {/* Main Card */}
-      <Card className="w-full max-w-3xl bg-white dark:bg-slate-800 rounded-b-lg shadow-[0_4px_12px_0_rgba(2,15,89,0.10)] border-2 border-transparent mt-0">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-[#021373] dark:text-white">Create Profile</CardTitle>
-          <div className="text-sm text-[#8491D9] dark:text-[#C7D2FE]">Enter your pharmacy information</div>
-        </CardHeader>
-        <CardContent>
+        
+        {/* Modal Body */}
+        <div className="p-6 max-h-[80vh] overflow-y-auto">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -74,30 +97,31 @@ export default function CreatePharmacistProfile() {
                 />
               </div>
             </div>
+            
             {/* Error */}
             {error && <div className="text-red-500 text-sm">{error}</div>}
+            
             {/* Actions */}
             <div className="flex gap-4 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 className="border-[#8491D9] text-[#021373] dark:text-[#8491D9] hover:border-[#021373] hover:bg-[#e6eafd] dark:hover:bg-[#021373]/20 transition w-1/2"
-                onClick={() => navigate({ to: '/dashboard/pharmacist/profile' })}
+                onClick={onClose}
               >
-                Save as Draft
+                Skip for Now
               </Button>
               <Button
                 type="submit"
                 className="bg-[#021373] hover:bg-[#8491D9] text-white w-1/2"
                 disabled={createProfile.isPending}
               >
-                {createProfile.isPending ? 'Publishing...' : 'Publish Profile'}
+                {createProfile.isPending ? 'Creating...' : 'Create Profile'}
               </Button>
             </div>
-            <div className="text-right text-xs text-gray-400 mt-2">Last saved: 2 minutes ago</div>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

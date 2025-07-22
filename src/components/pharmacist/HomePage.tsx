@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { usePharmacyOrders, useMedicines } from '@/hooks/usePharmacy';
+import { useCurrentUser } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TruckIcon, ClipboardDocumentIcon, BeakerIcon, PlusIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import CreatePharmacistProfileModal from './profile/CreateProfile';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
@@ -23,7 +25,7 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
 };
 
-export default function PharmacistHomePage() {
+function PharmacistHomePage() {
   const navigate = useNavigate();
   const { data: orders = [], isLoading, error } = usePharmacyOrders();
   const { data: medicines = [] } = useMedicines();
@@ -256,5 +258,44 @@ export default function PharmacistHomePage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function PharmacistDashboard() {
+  const { data: currentUser, isLoading } = useCurrentUser();
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  
+  useEffect(() => {
+    // Check if user needs to create a profile
+    if (currentUser && (!currentUser.profile || Object.keys(currentUser.profile).length === 0)) {
+      setShowProfileModal(true);
+    }
+  }, [currentUser]);
+  
+  const closeProfileModal = () => {
+    setShowProfileModal(false);
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Main Dashboard Content */}
+      <PharmacistHomePage />
+      
+      {/* Profile creation modal */}
+      <CreatePharmacistProfileModal 
+        isOpen={showProfileModal} 
+        onClose={closeProfileModal} 
+      />
+    </>
   );
 }
