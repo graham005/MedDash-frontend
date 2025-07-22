@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from '@tanstack/react-router';
 import { ShieldCheckIcon } from '@heroicons/react/24/solid';
 import ProfileHeader from './Header';
+import { useState } from 'react';
+import EditDoctorProfileModal from './EditProfile';
 
 export function getInitials(firstName?: string, lastName?: string) {
   if (!firstName && !lastName) return '';
@@ -12,6 +14,10 @@ export function getInitials(firstName?: string, lastName?: string) {
 
 export default function DoctorProfileDetails() {
   const { data: profile, isLoading } = useProfile();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const openEditModal = () => setIsEditModalOpen(true);
+  const closeEditModal = () => setIsEditModalOpen(false);
   const navigate = useNavigate();
 
   if (isLoading) {
@@ -22,7 +28,7 @@ export default function DoctorProfileDetails() {
 
   return (
     <div className="min-h-screen bg-[#F5F7FD] dark:bg-slate-950 py-0 px-0">
-        <ProfileHeader />
+      <ProfileHeader />
       {/* Main Card */}
       <div className="max-w-2xl mx-auto mt-10 mb-8 px-2">
         <Card className="bg-white dark:bg-slate-800 rounded-lg shadow-[0_4px_12px_0_rgba(2,15,89,0.10)] border-2 border-transparent hover:border-[#8491D9]">
@@ -88,8 +94,8 @@ export default function DoctorProfileDetails() {
                   <div className="flex flex-wrap gap-2">
                     {profile?.specializations?.length
                       ? profile.specializations.map((spec: string, i: number) => (
-                          <span key={i} className="bg-[#8491D9] text-white px-3 py-1 rounded-full text-xs font-semibold">{spec}</span>
-                        ))
+                        <span key={i} className="bg-[#8491D9] text-white px-3 py-1 rounded-full text-xs font-semibold">{spec}</span>
+                      ))
                       : <span className="text-gray-400">Not set</span>
                     }
                   </div>
@@ -111,8 +117,8 @@ export default function DoctorProfileDetails() {
               <ul className="list-disc ml-6 mt-1 text-[#010626] dark:text-white">
                 {profile?.qualification
                   ? profile.qualification.split(',').map((q: string, i: number) => (
-                      <li key={i}>{q.trim()}</li>
-                    ))
+                    <li key={i}>{q.trim()}</li>
+                  ))
                   : <li className="text-gray-400">Not set</li>
                 }
               </ul>
@@ -123,14 +129,19 @@ export default function DoctorProfileDetails() {
               <Button
                 variant="outline"
                 className="border-[#8491D9] text-[#8491D9] hover:border-[#021373] hover:bg-[#e6eafd] dark:hover:bg-[#021373]/20 transition"
-                onClick={() => navigate({ to: '/dashboard/doctor/profile/edit' })}
+                onClick={openEditModal}
               >
                 Edit Profile
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+
+              <EditDoctorProfileModal
+                isOpen={isEditModalOpen}
+                onClose={closeEditModal}
+              />
+          </div>
+        </CardContent>
+      </Card>
     </div>
+    </div >
   );
 }

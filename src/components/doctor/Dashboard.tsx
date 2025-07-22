@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { BellIcon } from "@heroicons/react/24/outline";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { useDoctorAppointments } from "@/hooks/useAppointments";
+import CreateDoctorProfileModal from "./profile/CreateProfile";
 
 export default function DoctorDashboard() {
   // Get doctor info
@@ -12,6 +13,7 @@ export default function DoctorDashboard() {
     isLoading: isLoadingDoctorAppointments,
     error: doctorAppointmentsError,
   } = useDoctorAppointments();
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Filter today's appointments
   const today = new Date();
@@ -39,6 +41,24 @@ export default function DoctorDashboard() {
     });
     return uniquePatients.slice(0, 3);
   }, [todayAppointments]);
+
+  useEffect(() => {
+    // Check if user needs to create a profile
+    if (
+      currentUser &&
+      (!currentUser.profile || Object.keys(currentUser.profile).length === 0)
+    ) {
+      setShowProfileModal(true);
+    }
+  }, [currentUser]);
+
+  const closeProfileModal = () => {
+    setShowProfileModal(false);
+  };
+
+  if (isLoadingUser) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors w-full">
@@ -99,16 +119,17 @@ export default function DoctorDashboard() {
                     src={`https://randomuser.me/api/portraits/${
                       idx % 2 === 0 ? "women" : "men"
                     }/${44 + idx}.jpg`}
-                    alt={appt.patient?.user?.firstName ?? ''}
+                    alt={appt.patient?.user?.firstName ?? ""}
                     className="w-12 h-12 rounded-full"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-white">
-                        {appt.patient?.user?.firstName ?? 'Unknown'} {appt.patient?.user?.lastName ?? ''}
+                        {appt.patient?.user?.firstName ?? "Unknown"}{" "}
+                        {appt.patient?.user?.lastName ?? ""}
                       </span>
                       <span className="text-xs text-slate-100">
-                        ID: #{appt.patient?.id?.slice(-5) ?? '-----'}
+                        ID: #{appt.patient?.id?.slice(-5) ?? "-----"}
                       </span>
                     </div>
                     <div className="text-slate-100 text-xs">
@@ -221,7 +242,9 @@ export default function DoctorDashboard() {
                           : "Consultation"}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-300">
-                        Patient: {appt.patient?.user?.firstName ?? 'Unknown'} {appt.patient?.user?.lastName ?? ''}
+                        Patient:{" "}
+                        {appt.patient?.user?.firstName ?? "Unknown"}{" "}
+                        {appt.patient?.user?.lastName ?? ""}
                       </div>
                     </div>
                   </div>
@@ -242,6 +265,12 @@ export default function DoctorDashboard() {
             </div>
           )}
         </section>
+
+        {/* Profile creation modal */}
+        <CreateDoctorProfileModal
+          isOpen={showProfileModal}
+          onClose={closeProfileModal}
+        />
       </main>
     </div>
   );
