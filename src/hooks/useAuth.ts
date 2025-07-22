@@ -1,35 +1,43 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { 
-  loginUser, 
-  logoutUser, 
-  signupUser, 
-  getCurrentUser, 
+import {
+  loginUser,
+  logoutUser,
+  getCurrentUser,
   refreshAuthToken,
+  isAuthenticated,
+  getUserRole,
+  clearAuthTokens,
+  getUserIdFromToken,
   createDoctorProfile,
   createPatientProfile,
   createPharmacistProfile,
   updatePassword,
   requestPasswordReset,
   resetPassword,
-  isAuthenticated,
-  getUserRole,
-  clearAuthTokens,
-  getUserIdFromToken,
   updateProfile,
   createAdminProfile,
   getProfile,
+  signupUser,
 } from '@/api/auth';
+import { useTokenRefresh } from './useTokenRefresh';
 import type { TDoctorProfile, TPatientProfile, TPharmacistProfile } from '@/types/types';
 
-// Get current user
+// Enhanced current user hook with token refresh
 export function useCurrentUser() {
   const navigate = useNavigate();
+  const { checkAndRefreshToken } = useTokenRefresh();
+
   return useQuery({
     queryKey: ['currentUser'],
-    queryFn: getCurrentUser,
+    queryFn: async () => {
+      // Check and refresh token before making the request
+      await checkAndRefreshToken();
+      return getCurrentUser();
+    },
     enabled: isAuthenticated() && !!getUserIdFromToken(),
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
     retry: (failureCount, error: any) => {
       if (error?.response?.status === 401) {
         clearAuthTokens();
@@ -37,6 +45,25 @@ export function useCurrentUser() {
         return false;
       }
       return failureCount < 2;
+    },
+  });
+}
+
+// Token refresh mutation
+export function useRefreshToken() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: refreshAuthToken,
+    onSuccess: (newToken) => {
+      localStorage.setItem('accessToken', newToken);
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+    onError: (error) => {
+      console.error('Token refresh failed:', error);
+      clearAuthTokens();
+      queryClient.clear();
+      window.location.href = '/login';
     },
   });
 }
