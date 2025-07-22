@@ -40,22 +40,10 @@ export default function LoginForm() {
       const authenticated = await isAuthenticated();
       if (authenticated && userRole && currentUser) {
         if (userRole === "doctor") {
-          if (!currentUser.profile) {
-            navigate({ to: '/dashboard/doctor/profile/create' });
-            return;
-          }
           navigate({ to: '/dashboard/doctor' });
         } else if (userRole === "patient") {
-          if (!currentUser.profile) {
-            navigate({ to: '/dashboard/patient/profile/create' });
-            return;
-          }
           navigate({ to: '/dashboard/patient' });
         } else if (userRole === "pharmacist") {
-          if (!currentUser.profile) {
-            navigate({ to: '/dashboard/pharmacist/profile/create' });
-            return;
-          }
           navigate({ to: '/dashboard/pharmacist' });
         } else if (userRole === "admin") {
           navigate({ to: '/dashboard/admin' });
