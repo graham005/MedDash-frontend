@@ -1,3 +1,5 @@
+import type { EmergencyType, EMSStatus, Priority } from "./enums";
+
 export interface TSignIn {
     email: string;
     password: string;
@@ -48,5 +50,57 @@ interface User {
     lastName: string;
     phoneNumber?: string;
     userRole: string;
+}
+
+export interface CreateEmsRequestDto {
+  lat: number;
+  lng: number;
+  emergencyType: EmergencyType;
+  priority: Priority;
+  description?: string;
+  contactNumber?: string;
+}
+
+export interface UpdateLocationDto {
+  lat: number;
+  lng: number;
+}
+
+export interface UpdateStatusDto {
+  status: EMSStatus;
+  notes?: string;
+}
+
+export interface EMSRequest {
+  id: string;
+  patient: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+  };
+  paramedic?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+  };
+  patientLat: number;
+  patientLng: number;
+  paramedicLat?: number;
+  paramedicLng?: number;
+  status: EMSStatus;
+  emergencyType: EmergencyType;
+  priority: Priority;
+  description?: string;
+  contactNumber?: string;
+  notes?: string;
+  dispatchTime?: string;
+  arrivalTime?: string;
+  completionTime?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
