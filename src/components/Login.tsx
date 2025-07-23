@@ -47,6 +47,8 @@ export default function LoginForm() {
           navigate({ to: '/dashboard/pharmacist' });
         } else if (userRole === "admin") {
           navigate({ to: '/dashboard/admin' });
+        } else if (userRole === "paramedic") {
+          navigate({ to: '/dashboard/paramedic/ems'})
         }
       }
     };

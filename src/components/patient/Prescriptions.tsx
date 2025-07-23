@@ -25,6 +25,7 @@ export default function PatientPrescriptions() {
     const medicine = medicines.find(med => med.id === medicineId);
     return medicine?.name || 'Unknown Medicine';
   };
+  console.log("this is the prescription data", prescriptions)
 
   // Helper function to format date
   const formatDate = (dateString: string) => {

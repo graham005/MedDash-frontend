@@ -10,6 +10,7 @@ import {
     BuildingStorefrontIcon,
     ArrowLeftEndOnRectangleIcon,
     TruckIcon,
+    ShieldExclamationIcon,
 } from "@heroicons/react/24/solid";
 import { useLogout } from '@/hooks/useAuth';
 import { ModeToggle } from './mode-toggle';
@@ -42,6 +43,7 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
                 { label: "Admins", to: "/dashboard/admin/users/admins" },
             ],
         },
+        { label: "EMS Control", icon: ShieldExclamationIcon, to: "/dashboard/admin/ems" },
         { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/admin/settings" },
     ],
     patient: [
@@ -49,6 +51,7 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
         { label: "Appointments", icon: CalendarDaysIcon, to: "/dashboard/patient/appointments" },
         { label: "Prescriptions", icon: ClipboardDocumentIcon, to: "/dashboard/patient/prescriptions" },
         { label: "Orders", icon: TruckIcon, to: "/dashboard/patient/orders" },
+        { label: "Emergency", icon: ShieldExclamationIcon, to: "/dashboard/patient/ems" },
         { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/patient/settings" },
     ],
     doctor: [
@@ -63,6 +66,10 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
         { label: "Inventory", icon: BuildingStorefrontIcon, to: "/dashboard/pharmacist/inventory" },
         { label: "Orders", icon: ClipboardDocumentIcon, to: "/dashboard/pharmacist/orders" },
         { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/pharmacist/settings" },
+    ],
+    paramedic: [
+        { label: "Emergency Dashboard", icon: ShieldExclamationIcon, to: "/dashboard/paramedic/ems" },
+        { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/paramedic/settings" },
     ],
 };
 
