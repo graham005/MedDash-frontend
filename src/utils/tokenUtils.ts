@@ -1,7 +1,13 @@
+import { jwtDecode } from 'jwt-decode';
+
+interface JwtPayload {
+  exp: number;
+  [key: string]: any;
+}
+
 export const isTokenExpired = (token: string): boolean => {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    // Consider adding a small buffer here, e.g., 5 seconds before actual expiry
+    const payload = jwtDecode<JwtPayload>(token);
     return payload.exp * 1000 < Date.now() + 5000; // Expired if within 5 seconds of now
   } catch (e) {
     return true; // Malformed token is effectively expired
@@ -10,7 +16,8 @@ export const isTokenExpired = (token: string): boolean => {
 
 export const getTokenExpirationTime = (token: string): number | null => {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = jwtDecode<JwtPayload>(token);
+    console.log(payload)
     return payload.exp * 1000; // Convert to milliseconds
   } catch (error) {
     console.error('Error parsing token expiration:', error);
@@ -20,7 +27,7 @@ export const getTokenExpirationTime = (token: string): number | null => {
 
 export const shouldRefreshToken = (token: string): boolean => {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = jwtDecode<JwtPayload>(token);
     const expiryTime = payload.exp * 1000;
     const now = Date.now();
     const refreshThreshold = 5 * 60 * 1000; // Refresh 5 minutes before actual expiry
