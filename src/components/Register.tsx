@@ -277,7 +277,7 @@ export default function RegisterForm() {
           <Button
             type="submit"
             className="w-full bg-indigo-400 hover:bg-indigo-500 text-white mt-2"
-            disabled={loading || isSignupPending || !form.state.isValid || !form.state.values.terms}
+            //disabled={loading || isSignupPending || !form.state.isValid || !form.state.values.terms}
           >
             {loading || isSignupPending ? "Creating..." : "Continue"}
           </Button>
