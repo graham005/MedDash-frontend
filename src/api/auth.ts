@@ -254,6 +254,7 @@ export const signupUser = async (signUpData: TSignUp): Promise<SignUpResponse> =
     if (error.response?.status === 409) {
       throw new Error('Email already exists. Please use a different email.');
     } else if (error.response?.status === 400) {
+      console.log('Invalid data. Please check your information.', error)
       throw new Error('Invalid data. Please check your information.');
     } else if (error.response?.status >= 500) {
       throw new Error('Server error. Please try again later.');

@@ -9,7 +9,7 @@ export interface User {
   email: string;
   phoneNumber?: string;
   userRole: UserRole;
-  status: UserStatus;
+  userStatus: UserStatus;
   createdAt: string;
 }
 
@@ -28,6 +28,7 @@ export interface UpdateUserDto {
   email?: string;
   password?: string;
   phoneNumber?: string;
+  userStatus?: UserStatus;
 }
 
 // Add type for profile response
