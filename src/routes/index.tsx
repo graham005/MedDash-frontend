@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { UserIcon, IdentificationIcon, BeakerIcon, CalendarIcon, ClipboardIcon, VideoCameraIcon, FolderIcon, LockClosedIcon, DevicePhoneMobileIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
-import logo from '../logo.svg'
 import Header from '@/components/Header';
 
 export const Route = createFileRoute('/')({
@@ -14,8 +13,26 @@ function App() {
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a8a] dark:from-slate-950 dark:to-slate-900">
       <Header />
       {/* Hero Section */}
-      <section id='hero' className="w-full py-20 px-4 flex min-h-screen flex-col md:flex-row items-center justify-between gap-8 bg-gradient-to-br from-[#0f172a] to-[#1e3a8a] dark:from-slate-950 dark:to-slate-900">
-        <div className="flex-1 flex flex-col gap-6 max-w-xl p-6">
+      <section
+        id='hero'
+        className="w-full py-20 px-4 flex min-h-screen flex-col md:flex-row items-center justify-between gap-8 relative"
+        style={{
+          backgroundImage: "url('/exterior-naz-brand.avif')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      >
+        {/* Overlay */}
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            background: "linear-gradient(135deg, #0f172aCC 0%, #1e3a8aCC 100%)", // CC = 80% opacity
+            pointerEvents: "none",
+          }}
+        />
+        {/* Content */}
+        <div className="flex-1 flex flex-col gap-6 max-w-xl p-6 relative z-10">
           <h1 className="text-5xl md:text-6xl font-bold text-white dark:text-slate-100">
             Your Health,<br />
             <span className="underline decoration-2 decoration-white dark:decoration-slate-100">Simplified</span>
@@ -27,22 +44,17 @@ function App() {
             <Button asChild className="bg-indigo-500 hover:bg-indigo-600 text-white dark:bg-indigo-700 dark:hover:bg-indigo-800 px-6 py-2">
               <a href="/register">Get Started</a>
             </Button>
-            <Button variant="outline" className="border-white bg- text-white hover:bg-white hover:text-indigo-700 dark:border-slate-200 dark:text-slate-200 dark:hover:bg-slate-200 dark:hover:text-indigo-800 px-6 py-2">Learn More</Button>
+            <Button variant="outline" className="border-white text-indigo-800 hover:bg-white hover:text-indigo-700 dark:border-slate-200 dark:text-slate-200 dark:hover:bg-slate-200 dark:hover:text-indigo-800 px-6 py-2">Learn More</Button>
           </div>
         </div>
-        <div className="flex-1 flex justify-center items-center">
-          <div className="relative w-64 h-64">
-            <div className="absolute inset-0 rounded-full bg-white/10 blur-2xl" />
-            <img src={logo} alt="Health Logo" className="relative w-40 h-40 mx-auto" />
-            <div className="absolute top-8 left-8 flex gap-4">
-              <UserIcon className="w-8 h-8 text-white/80" />
-              <CalendarIcon className="w-8 h-8 text-white/80" />
-            </div>
-            <div className="absolute bottom-8 right-8 flex gap-4">
-              <ClipboardIcon className="w-8 h-8 text-white/80" />
-              <IdentificationIcon className="w-8 h-8 text-white/80" />
-            </div>
-          </div>
+        <div className="flex-1 flex justify-center items-center relative z-10">
+          <img
+            src="/hero-image.jpg"
+            alt=""
+            className="relative min-w-120 h-75 mx-auto rounded-lg"
+          />
+          {/* Black overlay with 50% opacity */}
+          <div className="absolute w-120 mx-auto inset-0 rounded-lg" style={{ background: 'rgba(0,0,0,0.3)' }} />
         </div>
       </section>
 
@@ -171,15 +183,15 @@ function App() {
           </div>
           <div className="flex flex-col gap-2">
             <div className="font-semibold text-white">For Patients</div>
-            <a href="#" className="hover:underline">Book Appointment</a>
-            <a href="#" className="hover:underline">Find Doctors</a>
-            <a href="#" className="hover:underline">Health Records</a>
+            <a href="/login" className="hover:underline">Book Appointment</a>
+            <a href="/login" className="hover:underline">Find Doctors</a>
+            <a href="/login" className="hover:underline">Health Records</a>
           </div>
           <div className="flex flex-col gap-2">
             <div className="font-semibold text-white">For Providers</div>
-            <a href="#" className="hover:underline">Doctor Portal</a>
-            <a href="#" className="hover:underline">Pharmacy System</a>
-            <a href="#" className="hover:underline">Admin Dashboard</a>
+            <a href="/login" className="hover:underline">Doctor Portal</a>
+            <a href="/login" className="hover:underline">Pharmacy System</a>
+            <a href="/login" className="hover:underline">Admin Dashboard</a>
           </div>
           <div className="flex flex-col gap-2">
             <div className="font-semibold text-white">Support</div>
@@ -188,7 +200,7 @@ function App() {
             <a href="#" className="hover:underline">Privacy Policy</a>
           </div>
         </div>
-        <div className="text-center text-xs text-slate-500 dark:text-slate-600 mt-8">© 2024 MedDash. All rights reserved.</div>
+        <div className="text-center text-xs text-slate-500 dark:text-slate-600 mt-8">© 2025 MedDash. All rights reserved.</div>
       </footer>
     </div>
   )

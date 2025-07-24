@@ -1,3 +1,4 @@
+import Homepage from '@/components/admin/Homepage'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/dashboard/admin/')({
@@ -5,5 +6,5 @@ export const Route = createFileRoute('/dashboard/admin/')({
 })
 
 function RouteComponent() {
-  return <div>Hello "/dashboard/admin/"!</div>
+  return <div><Homepage /></div>
 }
