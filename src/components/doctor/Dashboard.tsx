@@ -57,18 +57,22 @@ export default function DoctorDashboard() {
   };
 
   if (isLoadingUser) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="text-slate-600 dark:text-slate-400">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors w-full">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 md:px-8 py-6 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 w-full">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 lg:px-8 py-4 sm:py-6 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800">
+        <div className="mb-3 sm:mb-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
             Dashboard
           </h1>
-          <div className="text-slate-500 dark:text-slate-300 text-sm">
+          <div className="text-slate-500 dark:text-slate-300 text-xs sm:text-sm">
             {isLoadingUser
               ? "Loading..."
               : currentUser
@@ -76,55 +80,55 @@ export default function DoctorDashboard() {
               : "Welcome back"}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition">
-            <BellIcon className="w-6 h-6 text-slate-500 dark:text-slate-300" />
+            <BellIcon className="w-5 h-5 sm:w-6 sm:h-6 text-slate-500 dark:text-slate-300" />
             {/* Notification dot */}
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
           </button>
           <img
             src="https://randomuser.me/api/portraits/men/32.jpg"
             alt="Profile"
-            className="w-9 h-9 rounded-full border-2 border-indigo-500"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-indigo-500"
           />
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="p-4 md:p-8 flex flex-col  gap-6 w-full">
+      <main className="p-3 sm:p-4 lg:p-8 flex flex-col gap-4 sm:gap-6">
         {/* Top Section: Patient Queue & Quick Actions */}
-        <div className="flex flex-col lg:flex-row gap-6 w-full">
+        <div className="flex flex-col xl:flex-row gap-4 sm:gap-6">
           {/* Patient Queue */}
-          <section className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow p-4 min-w-0 w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-lg text-slate-900 dark:text-white">
+          <section className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow p-3 sm:p-4 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+              <h2 className="font-semibold text-base sm:text-lg text-slate-900 dark:text-white">
                 Patient Queue
               </h2>
               <span className="text-xs text-slate-400">
                 {todayAppointments.length} patients today
               </span>
             </div>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:gap-4">
               {patientQueue.length === 0 && (
-                <div className="text-slate-400 text-center py-8">
+                <div className="text-slate-400 text-center py-6 sm:py-8 text-sm">
                   No patients in queue today.
                 </div>
               )}
               {patientQueue.map((appt, idx) => (
                 <div
                   key={appt.patient.id}
-                  className="flex items-center gap-4 bg-indigo-400 dark:bg-slate-950 rounded-lg p-4"
+                  className="flex items-center gap-3 sm:gap-4 bg-indigo-400 dark:bg-slate-950 rounded-lg p-3 sm:p-4"
                 >
                   <img
                     src={`https://randomuser.me/api/portraits/${
                       idx % 2 === 0 ? "women" : "men"
                     }/${44 + idx}.jpg`}
                     alt={appt.patient?.user?.firstName ?? ""}
-                    className="w-12 h-12 rounded-full"
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex-shrink-0"
                   />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-white">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                      <span className="font-semibold text-white text-sm sm:text-base truncate">
                         {appt.patient?.user?.firstName ?? "Unknown"}{" "}
                         {appt.patient?.user?.lastName ?? ""}
                       </span>
@@ -149,63 +153,68 @@ export default function DoctorDashboard() {
                       min
                     </div>
                   </div>
-                  <span
-                    className={`px-2 py-1 text-xs font-bold rounded ${
-                      appt.availabilitySlot?.type === "EMERGENCY"
-                        ? "bg-indigo-500 text-white"
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span
+                      className={`px-2 py-1 text-xs font-bold rounded ${
+                        appt.availabilitySlot?.type === "EMERGENCY"
+                          ? "bg-indigo-500 text-white"
+                          : appt.status === "confirmed"
+                          ? "bg-blue-400 text-white"
+                          : "bg-slate-400 text-white"
+                      }`}
+                    >
+                      {appt.availabilitySlot?.type === "EMERGENCY"
+                        ? "URGENT"
                         : appt.status === "confirmed"
-                        ? "bg-blue-400 text-white"
-                        : "bg-slate-400 text-white"
-                    }`}
-                  >
-                    {appt.availabilitySlot?.type === "EMERGENCY"
-                      ? "URGENT"
-                      : appt.status === "confirmed"
-                      ? "HIGH"
-                      : "NORMAL"}
-                  </span>
-                  <span className="text-xs text-slate-200 ml-2">
-                    Room {201 + idx}
-                  </span>
+                        ? "HIGH"
+                        : "NORMAL"}
+                    </span>
+                    <span className="text-xs text-slate-200 hidden sm:block">
+                      Room {201 + idx}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           </section>
+
           {/* Quick Actions */}
-          <aside className="w-full lg:w-72 flex-shrink-0 bg-white dark:bg-slate-800 rounded-xl shadow p-4 flex flex-col gap-3">
-            <h2 className="font-semibold text-lg text-slate-900 dark:text-white mb-2">
+          <aside className="w-full xl:w-72 flex-shrink-0 bg-white dark:bg-slate-800 rounded-xl shadow p-3 sm:p-4">
+            <h2 className="font-semibold text-base sm:text-lg text-slate-900 dark:text-white mb-3 sm:mb-4">
               Quick Actions
             </h2>
-            <button className="w-full py-2 rounded bg-indigo-400 hover:bg-indigo-500 text-white font-semibold transition">
-              + New Prescription
-            </button>
-            <button className="w-full py-2 rounded bg-indigo-100 dark:bg-slate-700 hover:bg-indigo-200 dark:hover:bg-slate-600 text-indigo-700 dark:text-indigo-200 font-semibold transition">
-              Refill Request
-            </button>
-            <button className="w-full py-2 rounded bg-indigo-100 dark:bg-slate-700 hover:bg-indigo-200 dark:hover:bg-slate-600 text-indigo-700 dark:text-indigo-200 font-semibold transition">
-              Drug Lookup
-            </button>
-            <button className="w-full py-2 rounded bg-indigo-100 dark:bg-slate-700 hover:bg-indigo-200 dark:hover:bg-slate-600 text-indigo-700 dark:text-indigo-200 font-semibold transition">
-              View History
-            </button>
+            <div className="grid grid-cols-2 xl:grid-cols-1 gap-2 sm:gap-3">
+              <button className="w-full py-2 sm:py-3 px-3 text-sm sm:text-base rounded bg-indigo-400 hover:bg-indigo-500 text-white font-semibold transition">
+                + New Prescription
+              </button>
+              <button className="w-full py-2 sm:py-3 px-3 text-sm sm:text-base rounded bg-indigo-100 dark:bg-slate-700 hover:bg-indigo-200 dark:hover:bg-slate-600 text-indigo-700 dark:text-indigo-200 font-semibold transition">
+                Refill Request
+              </button>
+              <button className="w-full py-2 sm:py-3 px-3 text-sm sm:text-base rounded bg-indigo-100 dark:bg-slate-700 hover:bg-indigo-200 dark:hover:bg-slate-600 text-indigo-700 dark:text-indigo-200 font-semibold transition">
+                Drug Lookup
+              </button>
+              <button className="w-full py-2 sm:py-3 px-3 text-sm sm:text-base rounded bg-indigo-100 dark:bg-slate-700 hover:bg-indigo-200 dark:hover:bg-slate-600 text-indigo-700 dark:text-indigo-200 font-semibold transition">
+                View History
+              </button>
+            </div>
           </aside>
         </div>
 
         {/* Today's Appointments */}
-        <section className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 w-full min-h-100">
-          <h2 className="font-semibold text-lg text-slate-900 dark:text-white mb-4">
+        <section className="bg-white dark:bg-slate-800 rounded-xl shadow p-3 sm:p-4">
+          <h2 className="font-semibold text-base sm:text-lg text-slate-900 dark:text-white mb-3 sm:mb-4">
             Today's Appointments
           </h2>
           {isLoadingDoctorAppointments ? (
-            <div className="text-slate-400 text-center py-8">
+            <div className="text-slate-400 text-center py-6 sm:py-8 text-sm">
               Loading appointments...
             </div>
           ) : doctorAppointmentsError ? (
-            <div className="text-red-500 text-center py-8">
+            <div className="text-red-500 text-center py-6 sm:py-8 text-sm">
               Error loading appointments.
             </div>
           ) : todayAppointments.length === 0 ? (
-            <div className="text-slate-400 text-center py-8 flex justify-center pt-20">
+            <div className="text-slate-400 text-center py-12 sm:py-20 text-sm">
               No appointments scheduled for today.
             </div>
           ) : (
@@ -213,9 +222,9 @@ export default function DoctorDashboard() {
               {todayAppointments.map((appt, idx) => (
                 <div
                   key={appt.id}
-                  className={`flex items-center justify-between py-3 ${
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between py-3 sm:py-4 gap-2 sm:gap-0 ${
                     idx === 2
-                      ? "bg-indigo-50 dark:bg-indigo-950 rounded"
+                      ? "bg-indigo-50 dark:bg-indigo-950 rounded px-2 sm:px-3"
                       : idx === todayAppointments.length - 1
                       ? "opacity-60"
                       : ""
@@ -223,7 +232,7 @@ export default function DoctorDashboard() {
                 >
                   <div className="flex items-center gap-3">
                     <span
-                      className={`w-3 h-3 rounded-full ${
+                      className={`w-3 h-3 rounded-full flex-shrink-0 ${
                         idx === 0
                           ? "bg-indigo-700"
                           : idx === 1
@@ -233,15 +242,15 @@ export default function DoctorDashboard() {
                           : "bg-slate-300"
                       }`}
                     ></span>
-                    <div>
-                      <div className="font-semibold text-slate-900 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base">
                         {appt.availabilitySlot?.type === "EMERGENCY"
                           ? "Current: Emergency Consult"
                           : appt.status === "confirmed"
                           ? "Confirmed Consultation"
                           : "Consultation"}
                       </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-300">
+                      <div className="text-xs text-slate-500 dark:text-slate-300 truncate">
                         Patient:{" "}
                         {appt.patient?.user?.firstName ?? "Unknown"}{" "}
                         {appt.patient?.user?.lastName ?? ""}
@@ -249,7 +258,7 @@ export default function DoctorDashboard() {
                     </div>
                   </div>
                   <span
-                    className={`text-xs ${
+                    className={`text-xs sm:text-sm self-start sm:self-center ${
                       idx === 2
                         ? "text-indigo-700 dark:text-indigo-300 font-semibold"
                         : "text-slate-400"

@@ -27,10 +27,11 @@ export default function EditDoctorProfileModal({ isOpen, onClose }: EditDoctorPr
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (user?.profile && user.userRole === 'doctor') {
+    if (user?.profile && user.profile.user?.userRole === 'doctor') {
       const doctorProfile = user.profile as TDoctorProfile;
+
       setForm({
-        fullName: `${user.firstName} ${user.lastName}`,
+        fullName: `${doctorProfile?.user?.firstName} ${doctorProfile.user?.lastName}`,
         licenseNumber: doctorProfile.licenseNumber || '',
         yearsOfExperience: Number(doctorProfile.yearsOfExperience) || 0,
         hospitalAffiliation: doctorProfile.hospitalAffiliation || '',
@@ -39,7 +40,7 @@ export default function EditDoctorProfileModal({ isOpen, onClose }: EditDoctorPr
         consultationFee: Number(doctorProfile.consultationFee) || 0,
       });
     }
-  }, [user]);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -61,6 +62,7 @@ export default function EditDoctorProfileModal({ isOpen, onClose }: EditDoctorPr
       specializations: form.specializations.filter((_, i) => i !== index),
     });
   };
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

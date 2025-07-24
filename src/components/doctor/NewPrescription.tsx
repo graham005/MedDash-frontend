@@ -44,6 +44,7 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
     const [searchResults, setSearchResults] = useState<Medicine[]>([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
+    const [medicineSearchTerms, setMedicineSearchTerms] = useState<Record<number, string>>({});
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [validityDate, setValidityDate] = useState('');
@@ -84,18 +85,22 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
 
     // Search medicines
     useEffect(() => {
-        if (medicineSearch.trim()) {
-            const filtered = allMedicines.filter(medicine =>
-                medicine.name.toLowerCase().includes(medicineSearch.toLowerCase()) ||
-                medicine.manufacturer.toLowerCase().includes(medicineSearch.toLowerCase())
-            );
-            setSearchResults(filtered);
+        if (activeSearchIndex !== null) {
+            if (medicineSearch.trim()) {
+                const filtered = allMedicines.filter(medicine =>
+                    medicine.name.toLowerCase().includes(medicineSearch.toLowerCase()) ||
+                    medicine.manufacturer.toLowerCase().includes(medicineSearch.toLowerCase())
+                );
+                setSearchResults(filtered);
+            } else {
+                // Show all medicines when input is focused and empty
+                setSearchResults(allMedicines);
+            }
             setShowDropdown(true);
         } else {
-            setSearchResults([]);
             setShowDropdown(false);
         }
-    }, [medicineSearch, allMedicines]);
+    }, [medicineSearch, allMedicines, activeSearchIndex]);
 
     // Add medication
     const addMedication = () => {
@@ -128,7 +133,7 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
     const selectMedicine = (medicine: Medicine, index: number) => {
         updateMedication(index, 'medicine', medicine);
         updateMedication(index, 'medicineId', medicine.id);
-        setMedicineSearch('');
+        setMedicineSearch(medicine.name); // Autofill search area with selected medicine name
         setShowDropdown(false);
         setActiveSearchIndex(null);
     };
@@ -475,12 +480,13 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
                                                             onFocus={() => {
                                                                 setActiveSearchIndex(index);
                                                                 setShowDropdown(true);
+                                                                // Show all medicines when focused and input is empty
+                                                                if (!medicineSearch.trim()) setSearchResults(allMedicines);
                                                             }}
                                                             onBlur={() => {
-                                                                // Delay hiding dropdown to allow for clicks
                                                                 setTimeout(() => {
-                                                                    if (activeSearchIndex === index) {
-                                                                        setActiveSearchIndex(null);
+                                                                    if (activeSearchIndex === index && !medication.medicine) {
+                                                                        //setActiveSearchIndex(null);
                                                                         setShowDropdown(false);
                                                                     }
                                                                 }, 200);
