@@ -17,7 +17,6 @@ export interface TPatientProfile {
     id?: string;
     dateOfBirth: string;
     bloodType: string;
-    medicalDocuments: File[];
     user?: User;
 
 }

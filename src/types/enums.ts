@@ -3,7 +3,7 @@ export enum UserRole{
     PATIENT = 'patient',
     DOCTOR = 'doctor',
     PHARMACIST = 'pharmacist',
-    PARAMEDIC = "PARAMEDIC",
+    PARAMEDIC = "paramedic",
 }
 
 export enum UserStatus {
