@@ -12,7 +12,8 @@ import {
   Phone,
   AlertTriangle,
   RefreshCw,
-  CheckCircle
+  CheckCircle,
+  Download // Add Download icon
 } from 'lucide-react';
 import { usePrescriptionById } from '@/hooks/usePrescriptions';
 import { useMedicines } from '@/hooks/usePharmacy';
@@ -22,11 +23,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import { generatePrescriptionPDF } from '@/utils/pdfGenerator'; // Import the PDF generator
 
 export default function PrescriptionDetails() {
   const navigate = useNavigate();
   const { prescriptionId } = useParams({ strict: false });
   const [isRequesting, setIsRequesting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const { data: prescription, isLoading, error } = usePrescriptionById(prescriptionId as string);
   const { data: medicines = [] } = useMedicines();
@@ -102,6 +105,26 @@ export default function PrescriptionDetails() {
     }
   };
 
+  // Add download function
+  const handleDownloadPDF = async () => {
+    if (!prescription) return;
+    
+    setIsDownloading(true);
+    try {
+      // Generate PDF
+      const doc = generatePrescriptionPDF(prescription, medicines);
+      
+      // Save the PDF
+      doc.save(`Prescription_${prescription.id}.pdf`);
+      toast.success("Prescription PDF downloaded successfully!");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to download prescription. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
@@ -149,6 +172,27 @@ export default function PrescriptionDetails() {
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
+            </Button>
+            
+            {/* Add Download Button */}
+            <Button
+              onClick={handleDownloadPDF}
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/10 ml-auto"
+              disabled={isDownloading}
+            >
+              {isDownloading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Downloading...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF
+                </>
+              )}
             </Button>
           </div>
           
@@ -323,6 +367,24 @@ export default function PrescriptionDetails() {
               </CardHeader>
               <CardContent>
                 <Button
+                  onClick={handleDownloadPDF}
+                  disabled={isDownloading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white mb-3"
+                >
+                  {isDownloading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Prescription
+                    </>
+                  )}
+                </Button>
+                
+                <Button
                   onClick={handleRequestRefill}
                   disabled={isRequesting}
                   className="w-full bg-[#8491D9] hover:bg-[#7380C8] text-white mb-3"
@@ -341,7 +403,7 @@ export default function PrescriptionDetails() {
                 </Button>
               </CardContent>
             </Card>
-
+            
             {/* Important Reminders */}
             <Card className="bg-white dark:bg-slate-800 border-0 shadow-md">
               <CardHeader>

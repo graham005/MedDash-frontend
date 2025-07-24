@@ -47,23 +47,35 @@ export default function PharmacyOrders() {
       [OrderStatus.COMPLETED]: 0,
       [OrderStatus.CANCELLED]: 0,
     };
-    orders.forEach(order => {
-      counts[order.status]++;
-    });
+    
+    // Add safety check
+    if (Array.isArray(orders)) {
+      orders.forEach(order => {
+        if (order.status && counts.hasOwnProperty(order.status)) {
+          counts[order.status]++;
+        }
+      });
+    }
+    
     return counts;
   }, [orders]);
 
   // Filtered and searched orders
   const filteredOrders = useMemo(() => {
+    // Add safety check
+    if (!Array.isArray(orders)) {
+      return [];
+    }
+    
     let filtered = orders;
     if (statusFilter !== 'all') {
       filtered = filtered.filter(order => order.status === statusFilter);
     }
     if (search.trim()) {
       filtered = filtered.filter(order =>
-        order.prescription.name.toLowerCase().includes(search.toLowerCase()) ||
-        order.prescription.patient.user.firstName.toLowerCase().includes(search.toLowerCase()) ||
-        order.prescription.patient.user.lastName.toLowerCase().includes(search.toLowerCase())
+        order.prescription?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        order.prescription?.patient?.user?.firstName?.toLowerCase().includes(search.toLowerCase()) ||
+        order.prescription?.patient?.user?.lastName?.toLowerCase().includes(search.toLowerCase())
       );
     }
     return filtered;

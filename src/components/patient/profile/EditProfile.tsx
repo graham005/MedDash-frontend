@@ -12,32 +12,21 @@ export default function EditPatientProfile() {
     const [form, setForm] = useState({
         dateOfBirth: '',
         bloodType: '',
-        medicalDocuments: [] as File[],
     });
     const [error, setError] = useState('');
 
     useEffect(() => {
         if (user?.profile && user.userRole === "patient") {
-            const patientProfile = user.profile as TPatientProfile
+            const patientProfile = user.profile as TPatientProfile;
             setForm({
                 dateOfBirth: patientProfile.dateOfBirth || '',
                 bloodType: patientProfile.bloodType || '',
-                medicalDocuments: [],
             });
         }
     }, [user]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setForm({ ...form, [e.target.name]: e.target.value });
-    };
-
-    const handleDocumentsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            setForm({
-                ...form,
-                medicalDocuments: Array.from(e.target.files),
-            });
-        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -53,7 +42,6 @@ export default function EditPatientProfile() {
                 profileData: {
                     dateOfBirth: form.dateOfBirth,
                     bloodType: form.bloodType,
-                    medicalDocuments: form.medicalDocuments,
                 },
             });
             navigate({ to: '/dashboard/patient/profile' });
@@ -116,43 +104,6 @@ export default function EditPatientProfile() {
                                 </select>
                             </div>
                         </div>
-                        {/* Medical Documents */}
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Medical Documents</label>
-                            <div className="border-2 border-dashed border-[#8491D9] rounded-lg p-6 mb-2 bg-[#F5F7FD] dark:bg-slate-900 flex flex-col items-center">
-                                <span className="text-[#021373] dark:text-[#8491D9] font-semibold mb-2">Upload Medical Documents</span>
-                                <input
-                                    type="file"
-                                    multiple
-                                    onChange={handleDocumentsChange}
-                                    className="hidden"
-                                    id="doc-upload"
-                                />
-                                <label htmlFor="doc-upload">
-                                    <Button type="button" className="bg-[#8491D9] hover:bg-[#021373] text-white px-4">Choose Files</Button>
-                                </label>
-                                <div className="mt-2 w-full">
-                                    {form.medicalDocuments.map((file, i) => (
-                                        <div key={i} className="flex items-center justify-between bg-white dark:bg-slate-800 border rounded px-3 py-2 mt-2">
-                                            <span className="text-[#021373] dark:text-[#8491D9] text-xs">{file.name}</span>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                className="text-red-500"
-                                                onClick={() =>
-                                                    setForm({
-                                                        ...form,
-                                                        medicalDocuments: form.medicalDocuments.filter((_, idx) => idx !== i),
-                                                    })
-                                                }
-                                            >
-                                                &times;
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
                         {/* Error */}
                         {error && <div className="text-red-500 text-sm">{error}</div>}
                         {/* Actions */}
@@ -177,6 +128,17 @@ export default function EditPatientProfile() {
                     </form>
                 </CardContent>
             </Card>
+            {/* Add Return to Profile Button */}
+            <div className="flex justify-start pt-5">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-[#021373] dark:text-[#8491D9] border-1 border-gray-400"
+                    onClick={() => navigate({ to: '/dashboard/patient/profile' })}
+                >
+                    Return to Profile
+                </Button>
+            </div>
         </div>
     );
 }
