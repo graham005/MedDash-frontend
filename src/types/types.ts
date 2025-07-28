@@ -1,54 +1,56 @@
-import type { EmergencyType, EMSStatus, Priority } from "./enums";
+import type { EmergencyType, EMSStatus, Priority, UserStatus } from "./enums";
 
 export interface TSignIn {
-    email: string;
-    password: string;
+  email: string;
+  password: string;
 }
 
 export interface TSignUp {
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-    phoneNumber: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  phoneNumber: string;
 }
 
 export interface TPatientProfile {
-    id?: string;
-    dateOfBirth: string;
-    bloodType: string;
-    user?: User;
+  id?: string;
+  dateOfBirth: string;
+  bloodType: string;
+  user?: User;
 
 }
 
 export interface TDoctorProfile {
-    id?: string;
-    licenseNumber: string;
-    yearsOfExperience: number;
-    hospitalAffiliation: string;
-    specializations: string[];
-    consultationFee: number;
-    user?: User;
+  id?: string;
+  licenseNumber: string;
+  yearsOfExperience: number;
+  hospitalAffiliation: string;
+  specializations: string[];
+  consultationFee: number;
+  user?: User;
 
 
 }
 
 export interface TPharmacistProfile {
-    id?: string;
-    pharmacyName: string;
-    licenseNumber: string;
-    user?: User;
+  id?: string;
+  pharmacyName: string;
+  licenseNumber: string;
+  user?: User;
 
 
 }
 
 interface User {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    phoneNumber?: string;
-    userRole: string;
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  userRole: string;
+  userStatus: UserStatus
+
 }
 
 export interface CreateEmsRequestDto {

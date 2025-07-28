@@ -9,9 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HealthbotRouteImport } from './routes/healthbot'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardPharmacistRouteImport } from './routes/dashboard/pharmacist'
@@ -75,6 +77,11 @@ import { Route as DashboardAdminUsersDoctorsRouteImport } from './routes/dashboa
 import { Route as DashboardAdminUsersAdminsRouteImport } from './routes/dashboard/admin/users/admins'
 import { Route as DashboardAdminPaymentsPaymentIdRouteImport } from './routes/dashboard/admin/payments/$paymentId'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -88,6 +95,11 @@ const LoginRoute = LoginRouteImport.update({
 const HealthbotRoute = HealthbotRouteImport.update({
   id: '/healthbot',
   path: '/healthbot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -447,9 +459,11 @@ const DashboardAdminPaymentsPaymentIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/healthbot': typeof HealthbotRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRouteWithChildren
   '/dashboard/patient': typeof DashboardPatientRouteWithChildren
@@ -514,9 +528,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/healthbot': typeof HealthbotRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/dashboard/admin/ems': typeof DashboardAdminEmsRoute
   '/dashboard/admin/settings': typeof DashboardAdminSettingsRoute
   '/dashboard/doctor/availability': typeof DashboardDoctorAvailabilityRoute
@@ -567,9 +583,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/healthbot': typeof HealthbotRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/dashboard/admin': typeof DashboardAdminRouteWithChildren
   '/dashboard/doctor': typeof DashboardDoctorRouteWithChildren
   '/dashboard/patient': typeof DashboardPatientRouteWithChildren
@@ -636,9 +654,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/forgot-password'
     | '/healthbot'
     | '/login'
     | '/register'
+    | '/reset-password'
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/patient'
@@ -703,9 +723,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/forgot-password'
     | '/healthbot'
     | '/login'
     | '/register'
+    | '/reset-password'
     | '/dashboard/admin/ems'
     | '/dashboard/admin/settings'
     | '/dashboard/doctor/availability'
@@ -755,9 +777,11 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/forgot-password'
     | '/healthbot'
     | '/login'
     | '/register'
+    | '/reset-password'
     | '/dashboard/admin'
     | '/dashboard/doctor'
     | '/dashboard/patient'
@@ -823,13 +847,22 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   HealthbotRoute: typeof HealthbotRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -849,6 +882,13 @@ declare module '@tanstack/react-router' {
       path: '/healthbot'
       fullPath: '/healthbot'
       preLoaderRoute: typeof HealthbotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1596,9 +1636,11 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   HealthbotRoute: HealthbotRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
