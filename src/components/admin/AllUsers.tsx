@@ -1,17 +1,18 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useUsers, useUserOperations } from "@/hooks/useUsers";
 import { UserRole, UserStatus } from "@/types/enums";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { PlusIcon, ArrowDownTrayIcon, PencilIcon, TrashIcon, PauseIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, ArrowDownTrayIcon, PencilIcon, TrashIcon, PauseIcon, PlayIcon } from "@heroicons/react/24/outline";
 
 const ROLE_LABELS: Record<UserRole, string> = {
     [UserRole.ADMIN]: "Admin",
     [UserRole.PATIENT]: "Patient",
     [UserRole.DOCTOR]: "Doctor",
     [UserRole.PHARMACIST]: "Pharmacist",
+    [UserRole.PARAMEDIC]: "Paramedic",
 };
 
 const STATUS_LABELS: Record<UserStatus, string> = {
@@ -25,6 +26,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
     patient: "bg-indigo-100 text-indigo-900",
     doctor: "bg-indigo-800 text-white",
     pharmacist: "bg-indigo-200 text-indigo-900",
+    paramedic: "bg-indigo-400 text-white",
 };
 
 const STATUS_COLORS: Record<UserStatus, string> = {
@@ -39,6 +41,7 @@ const ROLES: { label: string; value: UserRole | "all" }[] = [
     { label: "Doctor", value: UserRole.DOCTOR },
     { label: "Pharmacist", value: UserRole.PHARMACIST },
     { label: "Admin", value: UserRole.ADMIN },
+    { label: "Paramedic", value: UserRole.PARAMEDIC },
 ];
 
 function CreateUserModal({ open, onClose, onCreate }: { open: boolean; onClose: () => void; onCreate: (data: any) => void }) {
@@ -128,6 +131,209 @@ function CreateUserModal({ open, onClose, onCreate }: { open: boolean; onClose: 
   );
 }
 
+function EditUserModal({ 
+  open, 
+  onClose, 
+  user, 
+  onUpdate,
+  isUpdating = false // Add this prop
+}: { 
+  open: boolean; 
+  onClose: () => void; 
+  user: any; 
+  onUpdate: (id: string, data: any) => void;
+  isUpdating?: boolean; // Add this prop type
+}) {
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phoneNumber: "",
+    userRole: UserRole.PATIENT,
+    userStatus: UserStatus.ACTIVE,
+  });
+
+  // Update form when user changes or modal opens
+  useEffect(() => {
+    if (open && user) {
+      setForm({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        phoneNumber: user.phoneNumber || "",
+        userRole: user.userRole || UserRole.PATIENT,
+        userStatus: user.userStatus || UserStatus.ACTIVE,
+      });
+    }
+  }, [open, user]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdate(user.id, form);
+  };
+
+  const handleClose = () => {
+    // Reset form when closing
+    setForm({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phoneNumber: "",
+      userRole: UserRole.PATIENT,
+      userStatus: UserStatus.ACTIVE,
+    });
+    onClose();
+  };
+
+  if (!open || !user) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-8 w-full max-w-md">
+        <div className="text-lg font-bold mb-4 text-indigo-900 dark:text-white">
+          Edit User: {user.firstName} {user.lastName}
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex gap-2">
+            <Input
+              name="firstName"
+              placeholder="First Name"
+              value={form.firstName}
+              onChange={handleChange}
+              required
+              className="flex-1"
+            />
+            <Input
+              name="lastName"
+              placeholder="Last Name"
+              value={form.lastName}
+              onChange={handleChange}
+              required
+              className="flex-1"
+            />
+          </div>
+          <Input
+            name="email"
+            type="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={handleChange}
+            required
+          />
+          <Input
+            name="phoneNumber"
+            placeholder="Phone Number"
+            value={form.phoneNumber}
+            onChange={handleChange}
+          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              User Role
+            </label>
+            <select
+              name="userRole"
+              value={form.userRole}
+              onChange={handleChange}
+              className="w-full rounded px-3 py-2 border bg-indigo-50 dark:bg-slate-800 dark:text-white"
+              required
+            >
+              {Object.values(UserRole).map(role => (
+                <option key={role} value={role}>
+                  {ROLE_LABELS[role]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              User Status
+            </label>
+            <select
+              name="userStatus"
+              value={form.userStatus}
+              onChange={handleChange}
+              className="w-full rounded px-3 py-2 border bg-indigo-50 dark:bg-slate-800 dark:text-white"
+              required
+            >
+              {Object.values(UserStatus).map(status => (
+                <option key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              className="bg-indigo-700 hover:bg-indigo-800 text-white"
+              disabled={isUpdating} // Use the prop instead
+            >
+              {isUpdating ? ( // Use the prop instead
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  Updating...
+                </div>
+              ) : (
+                'Update User'
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmationDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  isDestructive = false
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  isDestructive?: boolean;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-6 w-full max-w-sm">
+        <div className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">{title}</div>
+        <div className="text-sm text-gray-600 dark:text-gray-300 mb-4">{message}</div>
+        <div className="flex gap-2 justify-end">
+          <Button type="button" variant="outline" onClick={onClose}>
+            {cancelText}
+          </Button>
+          <Button 
+            type="button" 
+            className={isDestructive ? "bg-red-600 hover:bg-red-700 text-white" : "bg-indigo-700 hover:bg-indigo-800 text-white"}
+            onClick={onConfirm}
+          >
+            {confirmText}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function exportUsersAsCSV(users: any[]) {
   if (!users.length) return;
   const headers = [
@@ -170,16 +376,31 @@ export default function AllUsers() {
     const [page, setPage] = useState(1);
     const pageSize = 10;
     const [modalOpen, setModalOpen] = useState(false);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<any>(null);
+    const [confirmDialog, setConfirmDialog] = useState<{
+      open: boolean;
+      title: string;
+      message: string;
+      onConfirm: () => void;
+      isDestructive?: boolean;
+    }>({
+      open: false,
+      title: "",
+      message: "",
+      onConfirm: () => {},
+      isDestructive: false
+    });
 
-    const { data: users = [], isLoading } = useUsers(roleFilter === "all" ? undefined : roleFilter as UserRole);
-    const { createUser, deleteUser } = useUserOperations();
+    const { data: users = [], isLoading, refetch } = useUsers(roleFilter === "all" ? undefined : roleFilter as UserRole);
+    const { createUser, deleteUser, updateUser } = useUserOperations();
 
     // Simulate stats for demo
     const stats = useMemo(() => ({
         total: users.length,
         newToday: 0,
-        active: users.filter(u => u.status === UserStatus.ACTIVE).length || 0,
-        pending: users.filter(u => u.status === UserStatus.PENDING).length || 0,
+        active: users.filter(u => u.userStatus === UserStatus.ACTIVE).length || 0,
+        pending: users.filter(u => u.userStatus === UserStatus.PENDING).length || 0,
     }), [users]);
 
     // Filtered users
@@ -221,6 +442,88 @@ export default function AllUsers() {
                 toast.error(err?.message || "Failed to create user");
             }
         });
+    };
+
+    // Handle suspend/enable user
+    const handleToggleUserStatus = (user: any) => {
+      const newStatus = user.userStatus === UserStatus.ACTIVE ? UserStatus.SUSPENDED : UserStatus.ACTIVE;
+      const action = newStatus === UserStatus.SUSPENDED ? "suspend" : "activate";
+      
+      setConfirmDialog({
+        open: true,
+        title: `${action.charAt(0).toUpperCase() + action.slice(1)} User`,
+        message: `Are you sure you want to ${action} ${user.firstName} ${user.lastName}?`,
+        onConfirm: () => {
+          updateUser.mutate(
+            { 
+              id: user.id, 
+              data: { userStatus: newStatus } 
+            },
+            {
+              onSuccess: () => {
+                toast.success(`User ${action}d successfully`);
+                refetch();
+                setConfirmDialog({ ...confirmDialog, open: false });
+              },
+              onError: (err: any) => {
+                toast.error(err?.message || `Failed to ${action} user`);
+                setConfirmDialog({ ...confirmDialog, open: false });
+              }
+            }
+          );
+        },
+        isDestructive: newStatus === UserStatus.SUSPENDED
+      });
+    };
+
+    // Handle edit user
+    const handleEditUser = (user: any) => {
+      console.log('Editing user:', user); // Debug log to see user data
+      setEditingUser(user);
+      setEditModalOpen(true);
+    };
+
+    const handleUpdateUser = (id: string, data: any) => {
+      console.log('Updating user with data:', data); // Debug log
+      updateUser.mutate(
+        { id, data },
+        {
+          onSuccess: () => {
+            toast.success("User updated successfully");
+            setEditModalOpen(false);
+            setEditingUser(null);
+            refetch();
+          },
+          onError: (err: any) => {
+            console.error('Update error:', err);
+            toast.error(err?.message || "Failed to update user");
+          }
+        }
+      );
+    };
+
+    // Handle delete user
+    const handleDeleteUser = (user: any) => {
+      setConfirmDialog({
+        open: true,
+        title: "Delete User",
+        message: `Are you sure you want to delete ${user.firstName} ${user.lastName}? This action cannot be undone.`,
+        onConfirm: () => {
+          deleteUser.mutate(user.id, {
+            onSuccess: () => {
+              toast.success("User deleted successfully");
+              refetch();
+              setConfirmDialog({ ...confirmDialog, open: false });
+            },
+            onError: (err: any) => {
+              console.error('Delete error:', err);
+              toast.error(err?.message || "Failed to delete user");
+              setConfirmDialog({ ...confirmDialog, open: false });
+            }
+          });
+        },
+        isDestructive: true
+      });
     };
 
     return (
@@ -347,27 +650,53 @@ export default function AllUsers() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <span className={`flex items-center gap-2 text-xs font-semibold ${STATUS_COLORS[user.status || UserStatus.ACTIVE]}`}>
+                                            <span className={`flex items-center gap-2 text-xs font-semibold ${STATUS_COLORS[user.userStatus || UserStatus.ACTIVE]}`}>
                                                 <span className="w-2 h-2 rounded-full inline-block" style={{
-                                                    background: user.status === UserStatus.ACTIVE ? "#6366f1" : user.status === UserStatus.PENDING ? "#fbbf24" : "#ef4444"
+                                                    background: user.userStatus === UserStatus.ACTIVE ? "#6366f1" : user.userStatus === UserStatus.PENDING ? "#fbbf24" : "#ef4444"
                                                 }} />
-                                                {STATUS_LABELS[user.status || UserStatus.ACTIVE]}
+                                                {STATUS_LABELS[user.userStatus || UserStatus.ACTIVE]}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 flex gap-2">
-                                            <Button variant="ghost" size="icon" className="text-indigo-500 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-slate-800">
-                                                <PauseIcon className="w-4 h-4" title="Suspend" />
+                                            {/* Suspend/Enable Button */}
+                                            <Button 
+                                              variant="ghost" 
+                                              size="icon" 
+                                              className={`${
+                                                user.userStatus === UserStatus.ACTIVE 
+                                                  ? "text-yellow-500 hover:bg-yellow-50 dark:hover:bg-slate-800" 
+                                                  : "text-green-500 hover:bg-green-50 dark:hover:bg-slate-800"
+                                              }`}
+                                              onClick={() => handleToggleUserStatus(user)}
+                                              title={user.userStatus === UserStatus.ACTIVE ? "Suspend User" : "Activate User"}
+                                            >
+                                                {user.userStatus === UserStatus.ACTIVE ? (
+                                                  <PauseIcon className="w-4 h-4" />
+                                                ) : (
+                                                  <PlayIcon className="w-4 h-4" />
+                                                )}
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="text-indigo-500 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-slate-800">
-                                                <PencilIcon className="w-4 h-4" title="Edit" />
+
+                                            {/* Edit Button */}
+                                            <Button 
+                                              variant="ghost" 
+                                              size="icon" 
+                                              className="text-indigo-500 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-slate-800"
+                                              onClick={() => handleEditUser(user)}
+                                              title="Edit User"
+                                            >
+                                                <PencilIcon className="w-4 h-4" />
                                             </Button>
+
+                                            {/* Delete Button */}
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-slate-800"
-                                                onClick={() => deleteUser.mutate(user.id)}
+                                                onClick={() => handleDeleteUser(user)}
+                                                title="Delete User"
                                             >
-                                                <TrashIcon className="w-4 h-4" title="Delete" />
+                                                <TrashIcon className="w-4 h-4" />
                                             </Button>
                                         </td>
                                     </tr>
@@ -411,7 +740,26 @@ export default function AllUsers() {
                     </div>
                 </div>
             </Card>
+            {/* Modals */}
             <CreateUserModal open={modalOpen} onClose={() => setModalOpen(false)} onCreate={handleCreateUser} />
+            <EditUserModal 
+              open={editModalOpen} 
+              onClose={() => {
+                setEditModalOpen(false);
+                setEditingUser(null);
+              }} 
+              user={editingUser}
+              onUpdate={handleUpdateUser}
+              isUpdating={updateUser.isPending} 
+            />
+            <ConfirmationDialog
+              open={confirmDialog.open}
+              onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+              onConfirm={confirmDialog.onConfirm}
+              title={confirmDialog.title}
+              message={confirmDialog.message}
+              isDestructive={confirmDialog.isDestructive}
+            />
         </div>
     );
 }

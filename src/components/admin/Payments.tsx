@@ -82,7 +82,7 @@ export default function Payments() {
                 <div className="text-3xl font-bold text-indigo-900 dark:text-white">KES {totalRevenue.toLocaleString()}</div>
               </div>
               <span className="bg-indigo-300 dark:bg-indigo-900 rounded-full p-2 pl-4 pr-4">
-                <span className="sr-only">Revenue</span> <b className="text-4xl text-indigo-900">$</b>  
+                <span className="sr-only">Revenue</span> <b className="text-4xl dark:text-white text-indigo-900">$</b>  
               </span>
             </CardContent>
           </Card>
