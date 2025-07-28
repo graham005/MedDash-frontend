@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import axios from 'axios';
 import { API_URL } from './url';
 
 export interface CreateAppointmentDto {
@@ -9,16 +9,14 @@ export interface CreateAppointmentDto {
   status?: 'booked' | 'confirmed' | 'cancelled' | 'completed';
   availabilitySlotId: string;
   reasonForVisit: string;
-  meetingUrl?: string;
 }
 
 export interface UpdateAppointmentDto {
   startTime?: string;
   endTime?: string;
-  status?: 'booked' | 'confirmed' | 'cancelled' | 'completed';
+  status?: 'booked' | 'confirmed' | 'cancelled' | 'completed';  
   availabilitySlotId?: string;
-  reasonForVisit?: string;
-  meetingUrl?: string;
+  reasonForVisit?: string; // Made this optional since it's an update
 }
 
 export interface Appointment {
@@ -27,7 +25,6 @@ export interface Appointment {
   endTime: string;
   status?: 'booked' | 'confirmed' | 'cancelled' | 'completed';
   reasonForVisit: string;
-  meetingUrl?: string;
   patient: {
     id: string;
     user: {
@@ -35,9 +32,7 @@ export interface Appointment {
       firstName: string;
       lastName: string;
       email: string;
-      phoneNumber: string;
     };
-    dateOfBirth: string;
   };
   doctor: {
     id: string;
@@ -49,8 +44,7 @@ export interface Appointment {
     };
     specialization: string;
     qualification: string;
-    licenseNumber: string;
-    consultationFee: number;
+    licenceNumber: string;
   };
   availabilitySlot: {
     id: string;
@@ -63,7 +57,11 @@ export interface Appointment {
 // Patient APIs
 export const createAppointment = async (appointmentData: CreateAppointmentDto): Promise<Appointment> => {
   try {
-    const response = await apiClient.post(`${API_URL}/appointments`, appointmentData);
+    const response = await axios.post(`${API_URL}/appointments`, appointmentData, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
     return response.data;
   } catch (error: any) {
     console.error('Error creating appointment:', error);
@@ -76,11 +74,15 @@ export const createAppointment = async (appointmentData: CreateAppointmentDto): 
     }
     throw new Error('Failed to create appointment. Please try again.');
   }
-};
+}
 
 export const getPatientAppointments = async (): Promise<Appointment[]> => {
   try {
-    const response = await apiClient.get(`${API_URL}/appointments/patient`);
+    const response = await axios.get(`${API_URL}/appointments/patient`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
     return response.data;
   } catch (error: any) {
     console.error('Error fetching patient appointments:', error);
@@ -89,11 +91,15 @@ export const getPatientAppointments = async (): Promise<Appointment[]> => {
     }
     throw new Error('Failed to fetch appointments.');
   }
-};
+}
 
 export const getPatientAppointmentById = async (id: string): Promise<Appointment> => {
   try {
-    const response = await apiClient.get(`${API_URL}/appointments/${id}`);
+    const response = await axios.get(`${API_URL}/appointments/${id}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
     return response.data;
   } catch (error: any) {
     console.error('Error fetching appointment:', error);
@@ -102,31 +108,15 @@ export const getPatientAppointmentById = async (id: string): Promise<Appointment
     }
     throw new Error('Failed to fetch appointment.');
   }
-};
-
-export const updateAppointmentStatus = async (
-  id: string,
-  status: 'booked' | 'confirmed' | 'cancelled' | 'completed'
-): Promise<Appointment> => {
-  try {
-    const response = await apiClient.patch(`${API_URL}/appointments/doctor/${id}/status`, { status });
-    return response.data;
-  } catch (error: any) {
-    console.error('Error updating appointment status:', error);
-    if (error.response?.status === 400) {
-      throw new Error('Invalid status value.');
-    } else if (error.response?.status === 404) {
-      throw new Error('Appointment not found or you do not have permission to update it.');
-    } else if (error.response?.status === 401) {
-      throw new Error('Authentication required. Please login.');
-    }
-    throw new Error('Failed to update appointment status.');
-  }
-};
+}
 
 export const updateAppointment = async (id: string, updateData: UpdateAppointmentDto): Promise<Appointment> => {
   try {
-    const response = await apiClient.patch(`${API_URL}/appointments/${id}`, updateData);
+    const response = await axios.patch(`${API_URL}/appointments/${id}`, updateData, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
     return response.data;
   } catch (error: any) {
     console.error('Error updating appointment:', error);
@@ -137,11 +127,40 @@ export const updateAppointment = async (id: string, updateData: UpdateAppointmen
     }
     throw new Error('Failed to update appointment.');
   }
-};
+}
+
+// Add the missing updateAppointmentStatus function
+export const updateAppointmentStatus = async (
+  id: string, 
+  status: 'booked' | 'confirmed' | 'cancelled' | 'completed'
+): Promise<Appointment> => {
+  try {
+    const response = await axios.patch(`${API_URL}/appointments/${id}`, { status }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error updating appointment status:', error);
+    if (error.response?.status === 400) {
+      throw new Error('Invalid status value.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Appointment not found.');
+    } else if (error.response?.status === 403) {
+      throw new Error('Not authorized to update this appointment.');
+    }
+    throw new Error('Failed to update appointment status.');
+  }
+}
 
 export const cancelAppointment = async (id: string): Promise<Appointment> => {
   try {
-    const response = await apiClient.delete(`${API_URL}/appointments/${id}`);
+    const response = await axios.delete(`${API_URL}/appointments/${id}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
     return response.data;
   } catch (error: any) {
     console.error('Error canceling appointment:', error);
@@ -150,12 +169,16 @@ export const cancelAppointment = async (id: string): Promise<Appointment> => {
     }
     throw new Error('Failed to cancel appointment.');
   }
-};
+}
 
 // Doctor APIs
 export const getDoctorAppointments = async (): Promise<Appointment[]> => {
   try {
-    const response = await apiClient.get(`${API_URL}/appointments/doctor`);
+    const response = await axios.get(`${API_URL}/appointments/doctor`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
     return response.data;
   } catch (error: any) {
     console.error('Error fetching doctor appointments:', error);
@@ -164,11 +187,15 @@ export const getDoctorAppointments = async (): Promise<Appointment[]> => {
     }
     throw new Error('Failed to fetch doctor appointments.');
   }
-};
+}
 
 export const getDoctorAppointmentById = async (id: string): Promise<Appointment> => {
   try {
-    const response = await apiClient.get(`${API_URL}/appointments/doctor/${id}`);
+    const response = await axios.get(`${API_URL}/appointments/doctor/${id}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
     return response.data;
   } catch (error: any) {
     console.error('Error fetching doctor appointment:', error);

@@ -1,8 +1,8 @@
 import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { API_URL } from './url';
-import { isTokenExpired, shouldRefreshToken } from '@/utils/tokenUtils';
+import { isTokenExpired} from '@/utils/tokenUtils';
 import type { TDoctorProfile, TPatientProfile, TPharmacistProfile, TSignIn, TSignUp } from '@/types/types';
-import { apiClient } from './apiClient';
+import type { UserStatus } from '@/types/enums';
 
 // Enhanced response types based on backend
 interface AuthResponse {
@@ -17,6 +17,7 @@ interface SignUpResponse {
   email: string;
   phoneNumber?: string;
   userRole: string;
+
 }
 
 interface UserResponse {
@@ -27,6 +28,8 @@ interface UserResponse {
   phoneNumber?: string;
   userRole: string;
   profile?: TPatientProfile | TDoctorProfile | TPharmacistProfile;
+  userStatus: UserStatus
+
 }
 
 // Profile response interfaces matching backend
@@ -39,6 +42,7 @@ interface ProfileResponse {
     email: string;
     phoneNumber?: string;
     userRole: string;
+    userStatus: UserStatus
   };
   // Profile-specific fields will be added based on type
   dateOfBirth?: string;

@@ -56,7 +56,6 @@ export const emsAPI = {
   getMyRequests: async (): Promise<EMSRequest[]> => {
     try {
       const response = await apiClient.get(`${API_URL}/ems/my-requests`);
-      console.log("response", response)
       return response.data;
     } catch (error: any) {
       throw new Error('Failed to fetch your requests.');
@@ -67,11 +66,82 @@ export const emsAPI = {
 
   // Assign paramedic to request (Admin only)
   assignParamedic: async (requestId: string, paramedicId: string): Promise<EMSRequest> => {
+    console.log("=== Assign Paramedic Debug Info ===");
+    console.log("Request ID:", requestId);
+    console.log("Paramedic ID:", paramedicId);
+
+    if (!paramedicId || paramedicId === 'undefined' || paramedicId === 'null') {
+      throw new Error('Paramedic ID is missing or invalid. Please log in again.');
+    }
+
+    if (!requestId) {
+      throw new Error('Request ID is missing.');
+    }
+
     try {
       const response = await apiClient.post(`${API_URL}/ems/${requestId}/assign/${paramedicId}`);
+      console.log("Assignment successful:", response.data);
       return response.data;
     } catch (error: any) {
-      throw new Error('Failed to assign paramedic.');
+      console.error("Assignment error:", error);
+      
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else if (error.response?.status === 400) {
+        throw new Error('Cannot assign paramedic. Please check if you are available and the request is valid.');
+      } else if (error.response?.status === 404) {
+        throw new Error('Request or paramedic not found.');
+      } else if (error.response?.status === 403) {
+        throw new Error('You do not have permission to accept this request.');
+      }
+      throw new Error('Failed to assign paramedic. Please try again.');
+    }
+  },
+
+  // New method for assignment with location
+  assignParamedicWithLocation: async (
+    requestId: string, 
+    paramedicId: string, 
+    lat: number, 
+    lng: number
+  ): Promise<EMSRequest> => {
+    console.log("=== Assign Paramedic With Location Debug Info ===");
+    console.log("Request ID:", requestId);
+    console.log("Paramedic ID:", paramedicId);
+    console.log("Location:", { lat, lng });
+
+    if (!paramedicId || paramedicId === 'undefined' || paramedicId === 'null') {
+      throw new Error('Paramedic ID is missing or invalid. Please log in again.');
+    }
+
+    if (!requestId) {
+      throw new Error('Request ID is missing.');
+    }
+
+    if (!lat || !lng) {
+      throw new Error('Location coordinates are required.');
+    }
+
+    try {
+      const response = await apiClient.post(
+        `${API_URL}/ems/${requestId}/assign/${paramedicId}/with-location`,
+        { lat, lng }
+      );
+      console.log("Assignment with location successful:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("Assignment with location error:", error);
+      
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else if (error.response?.status === 400) {
+        throw new Error('Cannot assign paramedic. Please check if you are available and the request is valid.');
+      } else if (error.response?.status === 404) {
+        throw new Error('Request or paramedic not found.');
+      } else if (error.response?.status === 403) {
+        throw new Error('You do not have permission to accept this request.');
+      }
+      throw new Error('Failed to assign paramedic with location. Please try again.');
     }
   },
 

@@ -1,10 +1,9 @@
-import { apiClient } from './apiClient';
+import axios from 'axios';
 import { API_URL } from './url';
 
 export interface CreatePharmacyOrderDto {
   prescriptionId: string;
   status?: OrderStatus;
-  totalAmount: number;
 }
 
 export interface UpdatePharmacyOrderDto {
@@ -13,19 +12,29 @@ export interface UpdatePharmacyOrderDto {
 }
 
 export enum OrderStatus {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  PROCESSING = 'processing',
-  READY = 'ready',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled'
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+  PROCESSING = 'PROCESSING',
+  READY = 'READY',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED'
 }
 
 export interface PharmacyOrder {
   id: string;
   status: OrderStatus;
   createdAt: string;
-  totalAmount: number;
+  pharmacist: {
+    id: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+    pharmacyName: string;
+    licenceNumber: string;
+  };
   prescription: {
     id: string;
     name: string;
@@ -55,22 +64,17 @@ export interface PharmacyOrder {
       };
     };
   };
-  patient: {
-    id: string;
-    user: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
-    };
-  };
 }
 
 export const pharmacyOrderApi = {
   // Create pharmacy order (Pharmacist only)
   createPharmacyOrder: async (orderData: CreatePharmacyOrderDto): Promise<PharmacyOrder> => {
     try {
-      const response = await apiClient.post(`${API_URL}/pharmacy-order`, orderData);
+      const response = await axios.post(`${API_URL}/pharmacy-order`, orderData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
       return response.data;
     } catch (error: any) {
       console.error('Error creating pharmacy order:', error);
@@ -88,7 +92,11 @@ export const pharmacyOrderApi = {
   // Get all pharmacy orders for logged-in pharmacist
   getAllPharmacyOrders: async (): Promise<PharmacyOrder[]> => {
     try {
-      const response = await apiClient.get(`${API_URL}/pharmacy-order`);
+      const response = await axios.get(`${API_URL}/pharmacy-order`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
       return response.data;
     } catch (error: any) {
       console.error('Error fetching pharmacy orders:', error);
@@ -102,7 +110,11 @@ export const pharmacyOrderApi = {
   // Get pharmacy order by ID
   getPharmacyOrderById: async (id: string): Promise<PharmacyOrder> => {
     try {
-      const response = await apiClient.get(`${API_URL}/pharmacy-order/${id}`);
+      const response = await axios.get(`${API_URL}/pharmacy-order/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
       return response.data;
     } catch (error: any) {
       console.error('Error fetching pharmacy order:', error);
@@ -116,7 +128,11 @@ export const pharmacyOrderApi = {
   // Update pharmacy order status
   updatePharmacyOrder: async (id: string, updateData: UpdatePharmacyOrderDto): Promise<PharmacyOrder> => {
     try {
-      const response = await apiClient.patch(`${API_URL}/pharmacy-order/${id}`, updateData);
+      const response = await axios.patch(`${API_URL}/pharmacy-order/${id}`, updateData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
       return response.data;
     } catch (error: any) {
       console.error('Error updating pharmacy order:', error);
@@ -134,7 +150,11 @@ export const pharmacyOrderApi = {
   // Cancel pharmacy order (sets status to CANCELLED)
   cancelPharmacyOrder: async (id: string): Promise<PharmacyOrder> => {
     try {
-      const response = await apiClient.delete(`${API_URL}/pharmacy-order/${id}`);
+      const response = await axios.delete(`${API_URL}/pharmacy-order/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
       return response.data;
     } catch (error: any) {
       console.error('Error canceling pharmacy order:', error);

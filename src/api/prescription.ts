@@ -1,11 +1,10 @@
-import { apiClient } from './apiClient';
+import axios from 'axios';
 import { API_URL } from './url';
 
 export interface CreatePrescriptionDto {
   name: string;
   patientId: string;
   date: string; // ISO 8601 format
-  validityDate: string;
   medications: MedicationDto[];
 }
 
@@ -13,7 +12,6 @@ export interface UpdatePrescriptionDto {
   name?: string;
   patientId?: string;
   date?: string;
-  validityDate?: string;
   medications?: MedicationDto[];
 }
 
@@ -22,20 +20,17 @@ export interface MedicationDto {
   dosage: string;
   frequency: string;
   duration: string;
-  quantity: number
 }
 
 export interface Prescription {
   id: string;
   name: string;
   date: string;
-  validityDate: string
   medications: Array<{
     medicineId: string;
     dosage: string;
     frequency: string;
     duration: string;
-    quantity: number;
   }>;
   prescribedBy: {
     id: string;
@@ -70,7 +65,11 @@ export const prescriptionApi = {
   // Create prescription (Doctor only)
   createPrescription: async (prescriptionData: CreatePrescriptionDto): Promise<Prescription> => {
     try {
-      const response = await apiClient.post(`${API_URL}/prescription`, prescriptionData);
+      const response = await axios.post(`${API_URL}/prescription`, prescriptionData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
       return response.data;
     } catch (error: any) {
       console.error('Error creating prescription:', error);
@@ -88,7 +87,11 @@ export const prescriptionApi = {
   // Get all prescriptions for logged-in doctor
   getAllPrescriptions: async (): Promise<Prescription[]> => {
     try {
-      const response = await apiClient.get(`${API_URL}/prescription`);
+      const response = await axios.get(`${API_URL}/prescription`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
       return response.data;
     } catch (error: any) {
       console.error('Error fetching prescriptions:', error);
@@ -102,7 +105,11 @@ export const prescriptionApi = {
   // Get prescription by ID
   getPrescriptionById: async (id: string): Promise<Prescription> => {
     try {
-      const response = await apiClient.get(`${API_URL}/prescription/${id}`);
+      const response = await axios.get(`${API_URL}/prescription/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
       return response.data;
     } catch (error: any) {
       console.error('Error fetching prescription:', error);
@@ -116,7 +123,11 @@ export const prescriptionApi = {
   // Update prescription
   updatePrescription: async (id: string, updateData: UpdatePrescriptionDto): Promise<Prescription> => {
     try {
-      const response = await apiClient.patch(`${API_URL}/prescription/${id}`, updateData);
+      const response = await axios.patch(`${API_URL}/prescription/${id}`, updateData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
       return response.data;
     } catch (error: any) {
       console.error('Error updating prescription:', error);
@@ -134,7 +145,11 @@ export const prescriptionApi = {
   // Delete prescription
   deletePrescription: async (id: string): Promise<void> => {
     try {
-      await apiClient.delete(`${API_URL}/prescription/${id}`);
+      await axios.delete(`${API_URL}/prescription/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
     } catch (error: any) {
       console.error('Error deleting prescription:', error);
       if (error.response?.status === 404) {
