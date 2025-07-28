@@ -9,7 +9,7 @@ import {
 import { emsAPI } from '../api/ems';
 import { toast } from 'sonner';
 
-// Create EMS request
+// Create EMS request with better error handling
 export function useCreateEMSRequest() {
   const queryClient = useQueryClient();
   
@@ -21,7 +21,16 @@ export function useCreateEMSRequest() {
       toast.success('Emergency request created successfully!');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to create emergency request');
+      console.error('EMS Request Error:', error);
+      
+      // Handle specific error messages from backend
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else if (error.message.includes('active EMS request')) {
+        toast.error('You already have an active emergency request. Please wait for it to be completed before creating a new one.');
+      } else {
+        toast.error(error.message || 'Failed to create emergency request');
+      }
     },
   });
 }
@@ -62,7 +71,7 @@ export function useUpdateEMSStatus() {
   });
 }
 
-// Assign paramedic
+// Enhanced assign paramedic hook
 export function useAssignParamedic() {
   const queryClient = useQueryClient();
   
@@ -71,11 +80,59 @@ export function useAssignParamedic() {
       emsAPI.assignParamedic(requestId, paramedicId),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['ems-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['my-ems-requests'] });
       queryClient.invalidateQueries({ queryKey: ['ems-request', data.id] });
-      toast.success('Paramedic assigned successfully!');
+      toast.success('Request accepted! En route to patient.');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to assign paramedic');
+      console.error('Assign Paramedic Error:', error);
+      
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else if (error.message.includes('already assigned')) {
+        toast.error('This paramedic is already assigned to an active request.');
+      } else {
+        toast.error(error.message || 'Failed to accept request');
+      }
+    },
+  });
+}
+
+// Enhanced assign paramedic hook with location support
+export function useAssignParamedicWithLocation() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ 
+      requestId, 
+      paramedicId, 
+      lat, 
+      lng 
+    }: { 
+      requestId: string; 
+      paramedicId: string; 
+      lat: number; 
+      lng: number; 
+    }) =>
+      emsAPI.assignParamedicWithLocation(requestId, paramedicId, lat, lng),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['ems-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['my-ems-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['ems-request', data.id] });
+      toast.success('Request accepted! Your location has been shared. En route to patient.');
+    },
+    onError: (error: any) => {
+      console.error('Assign Paramedic With Location Error:', error);
+      
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else if (error.message.includes('already assigned')) {
+        toast.error('This paramedic is already assigned to an active request.');
+      } else if (error.message.includes('location')) {
+        toast.error('Failed to share location. Please check location permissions.');
+      } else {
+        toast.error(error.message || 'Failed to accept request with location');
+      }
     },
   });
 }

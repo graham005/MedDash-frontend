@@ -7,6 +7,7 @@ interface GeolocationState {
   timestamp: number | null;
   error: string | null;
   loading: boolean;
+  address?: string | null;
 }
 
 interface GeolocationOptions {
@@ -14,7 +15,8 @@ interface GeolocationOptions {
   timeout?: number;
   maximumAge?: number;
   watch?: boolean;
-  onUpdate?: (position: { lat: number; lng: number }) => void;
+  onUpdate?: (position: { lat: number; lng: number; address?: string }) => void;
+  includeAddress?: boolean;
 }
 
 export function useGeolocation(options: GeolocationOptions = {}) {
@@ -24,6 +26,7 @@ export function useGeolocation(options: GeolocationOptions = {}) {
     maximumAge = 30000,
     watch = false,
     onUpdate,
+    includeAddress = false,
   } = options;
 
   const [state, setState] = useState<GeolocationState>({
@@ -33,18 +36,56 @@ export function useGeolocation(options: GeolocationOptions = {}) {
     timestamp: null,
     error: null,
     loading: true,
+    address: null,
   });
 
   const watchIdRef = useRef<number | null>(null);
 
-  const updatePosition = (position: GeolocationPosition) => {
+  // Reverse geocoding function using OpenStreetMap Nominatim
+  const reverseGeocode = async (lat: number, lng: number): Promise<string | null> => {
+    if (!includeAddress) return null;
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`
+      );
+      
+      if (!response.ok) throw new Error('Geocoding failed');
+      
+      const data = await response.json();
+      
+      // Format the address nicely
+      const components = data.address || {};
+      const parts = [
+        components.house_number,
+        components.road,
+        components.neighbourhood || components.suburb,
+        components.city || components.town || components.village,
+        components.country
+      ].filter(Boolean);
+      
+      return parts.length > 0 ? parts.join(', ') : data.display_name;
+    } catch (error) {
+      console.warn('Reverse geocoding failed:', error);
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  };
+
+  const updatePosition = async (position: GeolocationPosition) => {
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+    
+    // Get address if requested
+    const address = await reverseGeocode(lat, lng);
+
     const newState = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
+      latitude: lat,
+      longitude: lng,
       accuracy: position.coords.accuracy,
       timestamp: position.timestamp,
       error: null,
       loading: false,
+      address,
     };
 
     setState(newState);
@@ -53,6 +94,7 @@ export function useGeolocation(options: GeolocationOptions = {}) {
       onUpdate({
         lat: newState.latitude,
         lng: newState.longitude,
+        address: newState.address || undefined,
       });
     }
   };
@@ -150,4 +192,32 @@ export function useGeolocation(options: GeolocationOptions = {}) {
     startWatching,
     stopWatching,
   };
+}
+
+// Utility function to get address from coordinates
+export async function getAddressFromCoordinates(lat: number, lng: number): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`
+    );
+    
+    if (!response.ok) throw new Error('Geocoding failed');
+    
+    const data = await response.json();
+    
+    // Format the address nicely
+    const components = data.address || {};
+    const parts = [
+      components.house_number,
+      components.road,
+      components.neighbourhood || components.suburb,
+      components.city || components.town || components.village,
+      components.country
+    ].filter(Boolean);
+    
+    return parts.length > 0 ? parts.join(', ') : data.display_name;
+  } catch (error) {
+    console.warn('Reverse geocoding failed:', error);
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
 }

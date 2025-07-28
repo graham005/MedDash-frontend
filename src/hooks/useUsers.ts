@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { userAPI, type User, type CreateUserDto, type UpdateUserDto } from '@/api/user';
 import { toast } from 'sonner';
 import { UserRole } from '@/types/enums';
+import { apiClient } from '@/api/apiClient';
 
 // Hook to get all users
 export function useUsers(userRole?: UserRole) {
@@ -109,14 +110,41 @@ export function useAllProfiles() {
 
 // Utility hook for user management operations
 export function useUserOperations() {
-  const createUser = useCreateUser();
-  const updateUser = useUpdateUser();
-  const deleteUser = useDeleteUser();
+  const queryClient = useQueryClient();
+
+  const createUser = useMutation({
+    mutationFn: async (userData: any) => {
+      const response = await apiClient.post('/users', userData);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+
+  const updateUser = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiClient.patch(`/users/${id}`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiClient.delete(`/users/${id}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
 
   return {
     createUser,
     updateUser,
     deleteUser,
-    isLoading: createUser.isPending || updateUser.isPending || deleteUser.isPending,
   };
 }
