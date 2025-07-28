@@ -4,15 +4,18 @@ import { Input } from '../components/ui/input'
 import { Card } from '../components/ui/card'
 import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { useLogin, useUserRole, useCurrentUser } from '@/hooks/useAuth' // <-- FIXED
+import { useLogin, useUserRole, useCurrentUser, useLogout } from '@/hooks/useAuth'
 import type { TSignIn } from '@/types/types'
 import { isAuthenticated } from '@/api/auth'
+import { UserStatus } from '@/types/enums'
 
 export default function LoginForm() {
   const [loading, setLoading] = useState(false);
+  const [suspendedError, setSuspendedError] = useState(false);
   const navigate = useNavigate();
 
   const { mutateAsync: login, isPending: isLoginPending, error: loginError } = useLogin();
+  const { mutateAsync: logout } = useLogout();
   const userRole = useUserRole();
   const { data: currentUser, isLoading } = useCurrentUser();
 
@@ -23,6 +26,7 @@ export default function LoginForm() {
     },
     onSubmit: async ({ value }) => {
       setLoading(true);
+      setSuspendedError(false); // Reset suspended error state
       try {
         await login(value as TSignIn);
       } catch (error) {
@@ -37,8 +41,23 @@ export default function LoginForm() {
     if (isLoading) return; // Wait for user data to load before redirecting
 
     const checkAuth = async () => {
+      console.log(currentUser?.profile?.user?.userStatus)
       const authenticated = await isAuthenticated();
       if (authenticated && userRole && currentUser) {
+        // Check if user is suspended
+        if (currentUser.profile?.user?.userStatus === UserStatus.SUSPENDED) {
+          // Set suspended error state
+          setSuspendedError(true);
+          // Log the user out to clear their session
+          try {
+            await logout();
+          } catch (error) {
+            console.error('Error logging out suspended user:', error);
+          }
+          return; // Prevent redirect
+        }
+
+        // Only redirect if user is not suspended
         if (userRole === "doctor") {
           navigate({ to: '/dashboard/doctor' });
         } else if (userRole === "patient") {
@@ -53,7 +72,7 @@ export default function LoginForm() {
       }
     };
     checkAuth();
-  }, [userRole, currentUser, isLoading, navigate]);
+  }, [userRole, currentUser, isLoading, navigate, logout]);
 
   if (isLoading) {
     return (
@@ -92,8 +111,30 @@ export default function LoginForm() {
           <div className="text-slate-500 dark:text-slate-400 text-xs">Sign in to your account to continue</div>
         </div>
 
-        {/* Display login error if any */}
-        {loginError && (
+        {/* Display suspended account error */}
+        {suspendedError && (
+          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <div className="font-medium text-amber-800 dark:text-amber-300">Account Suspended</div>
+                <div className="text-sm text-amber-700 dark:text-amber-200 mt-1">
+                  Your account has been suspended. Please contact support for assistance.
+                </div>
+                <div className="mt-2">
+                  <a href="mailto:support@meddash.com" className="text-xs underline text-amber-800 dark:text-amber-300 hover:text-amber-600 dark:hover:text-amber-100">
+                    Contact Support
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Display login error if any and not suspended */}
+        {loginError && !suspendedError && (
           <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
             <div className="text-sm text-red-800 dark:text-red-200">
               {loginError instanceof Error ? loginError.message : 'Login failed. Please try again.'}
@@ -168,7 +209,7 @@ export default function LoginForm() {
                   disabled={loading || isLoginPending}
                 />
                 <div className="flex justify-end">
-                  <a href="#" className="text-xs text-indigo-400 hover:underline">Forgot password?</a>
+                  <a href="/forgot-password" className="text-xs text-indigo-400 hover:underline">Forgot password?</a>
                 </div>
                 {field.state.meta.isTouched && field.state.meta.errors && (
                   <div className="text-xs text-red-500">{field.state.meta.errors}</div>
