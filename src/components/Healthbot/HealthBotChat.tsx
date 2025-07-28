@@ -1,9 +1,18 @@
-// src/components/HealthBot/HealthBotChat.tsx
+// filepath: c:\Users\The Elder\Documents\Teach2Give\Final Project\meddash-frontend\src\components\Healthbot\HealthBotChat.tsx
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Send, Bot, User, AlertTriangle, Phone, Calendar, UserCheck } from 'lucide-react';
+import { Send, Bot, User, AlertTriangle, Phone, Calendar, UserCheck, Pill, LogIn } from 'lucide-react';
 import { useHealthBot } from '../../hooks/useHealthBot';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useAllAvailabilitySlots } from '@/hooks/useAvailability';
+import { useNavigate } from '@tanstack/react-router';
+import {
+  PrescriptionCard,
+  MedicineSearch,
+  LoginPrompt,
+  type Medicine,
+  type Prescription
+} from './MedicineComponents';
 
 interface Message {
   id: string;
@@ -16,6 +25,11 @@ interface Message {
   reasoning?: string;
   showAppointmentForm?: boolean;
   showAppointmentList?: boolean;
+  showMedicineSearch?: boolean;
+  showPrescriptions?: boolean;
+  showLoginPrompt?: boolean;
+  medicines?: Medicine[];
+  prescriptions?: Prescription[];
 }
 
 interface HealthBotChatProps {
@@ -48,24 +62,33 @@ interface DoctorWithAvailability {
 }
 
 export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      type: 'bot',
-      content: "👋 Hello! I'm your health assistant. I'm here to help with medication questions, post-visit instructions, general health guidance, and appointment management. How can I assist you today?",
-      timestamp: new Date(),
-    },
-  ]);
+  const navigate = useNavigate();
+  const [messages, setMessages] = useState<Message[]>(
+    [
+      {
+        id: '1',
+        type: 'bot',
+        content: "👋 Hello! I'm your health assistant. I'm here to help with medication questions, post-visit instructions, general health guidance, and appointment management. How can I assist you today?",
+        timestamp: new Date(),
+      },
+    ]
+  );
   const [inputValue, setInputValue] = useState('');
   const [isEmergencyMode, setIsEmergencyMode] = useState(false);
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
-  const [appointmentFormData, setAppointmentFormData] = useState<AppointmentFormData>({
-    doctorId: '',
-    availabilitySlotId: '',
-    startTime: '',
-    endTime: '',
-    reasonForVisit: '',
-  });
+  const [showMedicineSearch, setShowMedicineSearch] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [medicineSearchResults, setMedicineSearchResults] = useState<Medicine[]>([]);
+  const [userPrescriptions, setUserPrescriptions] = useState<Prescription[]>([]);
+  const [appointmentFormData, setAppointmentFormData] = useState<AppointmentFormData>(
+    {
+      doctorId: '',
+      availabilitySlotId: '',
+      startTime: '',
+      endTime: '',
+      reasonForVisit: '',
+    }
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -73,6 +96,11 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
     askQuestionAuthenticated,
     handleEmergency,
     scheduleAppointment,
+    getUserPrescriptions,
+    getMedicineInfo,
+    getMedicineSideEffects,
+    getMedicineUsage,
+    searchMedicines,
     isLoading,
     error,
     isAuthenticated
@@ -82,67 +110,85 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
   const { data: allAvailabilitySlots = [], isLoading: isLoadingSlots } = useAllAvailabilitySlots();
 
   // Process availability slots to get doctors with their available slots
-  const doctorsWithAvailability = useMemo(() => {
-    if (!allAvailabilitySlots.length) return [];
+  const doctorsWithAvailability = useMemo(
+    () => {
+      if (!allAvailabilitySlots.length) return [];
 
-    const doctorMap = new Map<string, DoctorWithAvailability>();
+      const doctorMap = new Map<string, DoctorWithAvailability>();
 
-    allAvailabilitySlots.forEach(slot => {
-      // Only include slots that are not booked and are in the future
-      const slotDate = new Date(slot.startTime);
-      const now = new Date();
+      allAvailabilitySlots.forEach(slot => {
+        const slotDate = new Date(slot.startTime);
+        const now = new Date();
 
-      if (!slot.isBooked && slotDate > now) {
-        const doctorId = slot.doctor.id;
+        if (!slot.isBooked && slotDate > now) {
+          const doctorId = slot.doctor.id;
 
-        if (!doctorMap.has(doctorId)) {
-          doctorMap.set(doctorId, {
-            id: doctorId,
-            firstName: slot.doctor.user.firstName,
-            lastName: slot.doctor.user.lastName,
-            email: slot.doctor.user.email,
-            specialization: slot.doctor.specialization,
-            qualification: slot.doctor.qualification,
-            licenseNumber: slot.doctor.licenseNumber,
-            consultationFee: slot.doctor.consultationFee,
-            availableSlots: []
+          if (!doctorMap.has(doctorId)) {
+            doctorMap.set(doctorId, {
+              id: doctorId,
+              firstName: slot.doctor.user.firstName,
+              lastName: slot.doctor.user.lastName,
+              email: slot.doctor.user.email,
+              specialization: slot.doctor.specialization,
+              qualification: slot.doctor.qualification,
+              licenseNumber: slot.doctor.licenseNumber,
+              consultationFee: slot.doctor.consultationFee,
+              availableSlots: []
+            });
+          }
+
+          const doctor = doctorMap.get(doctorId)!;
+          doctor.availableSlots.push({
+            id: slot.id,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            type: slot.type
           });
         }
+      });
 
-        const doctor = doctorMap.get(doctorId)!;
-        doctor.availableSlots.push({
-          id: slot.id,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          type: slot.type
-        });
-      }
-    });
-
-    // Convert map to array and sort by doctor name
-    return Array.from(doctorMap.values()).sort((a, b) =>
-      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
-    );
-  }, [allAvailabilitySlots]);
+      // Convert map to array and sort by doctor name
+      return Array.from(doctorMap.values()).sort((a, b) =>
+        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+      );
+    },
+    [allAvailabilitySlots]
+  );
 
   // Get available slots for selected doctor
-  const availableSlotsForSelectedDoctor = useMemo(() => {
-    if (!appointmentFormData.doctorId) return [];
+  const availableSlotsForSelectedDoctor = useMemo(
+    () => {
+      if (!appointmentFormData.doctorId) return [];
 
-    const selectedDoctor = doctorsWithAvailability.find(
-      doctor => doctor.id === appointmentFormData.doctorId
-    );
+      const selectedDoctor = doctorsWithAvailability.find(
+        doctor => doctor.id === appointmentFormData.doctorId
+      );
 
-    return selectedDoctor?.availableSlots || [];
-  }, [appointmentFormData.doctorId, doctorsWithAvailability]);
+      return selectedDoctor?.availableSlots || [];
+    },
+    [appointmentFormData.doctorId, doctorsWithAvailability]
+  );
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  useEffect(
+    () => {
+      scrollToBottom();
+    },
+    [messages]
+  );
+
+  const detectMedicineIntent = (question: string): boolean => {
+    const medicineKeywords = [
+      'medicine', 'medication', 'drug', 'prescription', 'side effects',
+      'what does', 'my medicines', 'pills', 'dosage', 'how to take'
+    ];
+
+    const questionLower = question.toLowerCase();
+    return medicineKeywords.some(keyword => questionLower.includes(keyword));
+  };
 
   const detectAppointmentIntent = (question: string): boolean => {
     const appointmentKeywords = [
@@ -176,25 +222,55 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
       if (isEmergencyMode) {
         response = await handleEmergency(question);
       } else {
-        // Check if this is an appointment-related query
+        const isMedicineQuery = detectMedicineIntent(question);
         const isAppointmentQuery = detectAppointmentIntent(question);
 
-        if (isAppointmentQuery && isAuthenticated) {
-          // Use authenticated endpoint for appointment queries
+        if ((isMedicineQuery || isAppointmentQuery) && !isAuthenticated) {
+          // Show login prompt for medicine/appointment queries when not authenticated
+          const loginPromptMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            type: 'bot',
+            content: `🔒 **Authentication Required**
+
+To access ${isMedicineQuery ? 'your medicine information' : 'appointment features'}, you need to be logged in.
+
+${isMedicineQuery ? 
+`💊 **Medicine Features Available:**
+• View your current prescriptions
+• Get detailed medicine information
+• Learn about side effects and proper usage
+• Receive personalized dosage guidance` :
+`📅 **Appointment Features Available:**
+• View your upcoming appointments
+• Schedule new consultations
+• Cancel or reschedule visits
+• Access appointment history`}
+
+Please log in to continue with personalized healthcare assistance.`,
+            timestamp: new Date(),
+            showLoginPrompt: true,
+          };
+
+          setMessages(prev => [...prev, loginPromptMessage]);
+          return;
+        }
+
+        if ((isMedicineQuery || isAppointmentQuery) && isAuthenticated) {
           response = await askQuestionAuthenticated(question);
         } else {
-          // Use public endpoint for general health questions
           response = await askQuestion(question);
         }
       }
 
-
-
-      // Check if we need to show appointment forms or lists
+      // Check what special UI components to show
       const shouldShowAppointmentForm = question.toLowerCase().includes('schedule') ||
         question.toLowerCase().includes('book appointment');
       const shouldShowAppointmentList = question.toLowerCase().includes('my appointments') ||
         question.toLowerCase().includes('upcoming');
+      const shouldShowMedicineSearch = question.toLowerCase().includes('search medicine') ||
+        question.toLowerCase().includes('find medicine');
+      const shouldShowPrescriptions = question.toLowerCase().includes('my prescription') ||
+        question.toLowerCase().includes('my medicines');
 
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -207,9 +283,21 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
         reasoning: response.reasoning,
         showAppointmentForm: shouldShowAppointmentForm && isAuthenticated,
         showAppointmentList: shouldShowAppointmentList && isAuthenticated,
+        showMedicineSearch: shouldShowMedicineSearch && isAuthenticated,
+        showPrescriptions: shouldShowPrescriptions && isAuthenticated,
       };
 
       setMessages(prev => [...prev, botMessage]);
+
+      // Load prescriptions if needed
+      if (shouldShowPrescriptions && isAuthenticated) {
+        try {
+          const prescriptions = await getUserPrescriptions();
+          setUserPrescriptions(prescriptions);
+        } catch (err) {
+          console.error('Failed to load prescriptions:', err);
+        }
+      }
 
       // Reset emergency mode after handling
       if (isEmergencyMode) {
@@ -227,6 +315,184 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
     }
   };
 
+  // Medicine-related handlers
+  const handleMedicineInfo = async (medicineName: string) => {
+    try {
+      const response = await getMedicineInfo(medicineName);
+      const infoMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: response.answer,
+        timestamp: new Date(),
+        confidence: response.confidence,
+        sources: response.sources,
+      };
+      setMessages(prev => [...prev, infoMessage]);
+    } catch (err) {
+      console.error('Failed to get medicine info:', err);
+    }
+  };
+
+  const handleMedicineSideEffects = async (medicineName: string) => {
+    try {
+      const response = await getMedicineSideEffects(medicineName);
+      const sideEffectsMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: response.answer,
+        timestamp: new Date(),
+        confidence: response.confidence,
+        sources: response.sources,
+      };
+      setMessages(prev => [...prev, sideEffectsMessage]);
+    } catch (err) {
+      console.error('Failed to get side effects:', err);
+    }
+  };
+
+  const handleMedicineUsage = async (medicineName: string) => {
+    try {
+      const response = await getMedicineUsage(medicineName);
+      const usageMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: response.answer,
+        timestamp: new Date(),
+        confidence: response.confidence,
+        sources: response.sources,
+      };
+      setMessages(prev => [...prev, usageMessage]);
+    } catch (err) {
+      console.error('Failed to get medicine usage:', err);
+    }
+  };
+
+  const handleMedicineSearch = async (query: string) => {
+    try {
+      const results = await searchMedicines(query);
+      setMedicineSearchResults(results);
+    } catch (err) {
+      console.error('Failed to search medicines:', err);
+      setMedicineSearchResults([]);
+    }
+  };
+
+  const handleMedicineSelect = (medicine: Medicine) => {
+    setInputValue(`Tell me about ${medicine.name}`);
+    setShowMedicineSearch(false);
+  };
+
+  // Quick action handlers
+  const handleQuickPrescriptions = async () => {
+    if (!isAuthenticated) {
+      // Show login prompt if not authenticated
+      const loginMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: `🔒 **Login Required**
+
+To view your prescriptions, please log in first.
+
+💊 **After logging in, you can:**
+• View all your current prescriptions
+• See medicine details and dosages
+• Get information about side effects
+• Access prescribing doctor information`,
+        timestamp: new Date(),
+        showLoginPrompt: true,
+      };
+      setMessages(prev => [...prev, loginMessage]);
+      return;
+    }
+
+    try {
+      const prescriptions = await getUserPrescriptions();
+      setUserPrescriptions(prescriptions);
+      
+      const botMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: prescriptions.length > 0 
+          ? `📋 **Your Prescriptions**\n\nI've loaded your ${prescriptions.length} prescription(s). You can see them displayed below with detailed information about each medicine.`
+          : `📋 **No Prescriptions Found**\n\nYou don't have any prescriptions in your records yet. Contact your healthcare provider to add prescriptions to the system.`,
+        timestamp: new Date(),
+        confidence: 0.95,
+        sources: ['Prescription Database'],
+        showPrescriptions: prescriptions.length > 0,
+      };
+      setMessages(prev => [...prev, botMessage]);
+    } catch (err) {
+      console.error('Failed to get prescriptions:', err);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: `❌ **Error Loading Prescriptions**\n\nI'm having trouble accessing your prescription information right now. Please try again later or contact support if the problem persists.`,
+        timestamp: new Date(),
+        escalate: true,
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+
+  const handleQuickMedicines = async () => {
+    if (!isAuthenticated) {
+      // Show login prompt if not authenticated
+      const loginMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: `🔒 **Login Required**
+
+To view your medicines, please log in first.
+
+💊 **After logging in, you can:**
+• View all medicines from your prescriptions
+• See dosage and frequency information
+• Learn about side effects and usage
+• Get detailed medicine descriptions`,
+        timestamp: new Date(),
+        showLoginPrompt: true,
+      };
+      setMessages(prev => [...prev, loginMessage]);
+      return;
+    }
+
+    try {
+      // Use the authenticated question API to get medicines
+      const response = await askQuestionAuthenticated("show me my medicines");
+      
+      const botMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: response.answer,
+        timestamp: new Date(),
+        confidence: response.confidence,
+        sources: response.sources,
+        escalate: response.escalate,
+        reasoning: response.reasoning,
+      };
+      setMessages(prev => [...prev, botMessage]);
+    } catch (err) {
+      console.error('Failed to get medicines:', err);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: `❌ **Error Loading Medicines**\n\nI'm having trouble accessing your medicine information right now. Please try again later or contact support if the problem persists.`,
+        timestamp: new Date(),
+        escalate: true,
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+
+  const handleLogin = () => {
+    navigate({ to: '/login'});
+  };
+
+  const handleCloseLoginPrompt = () => {
+    setShowLoginPrompt(false);
+  };
+
+  // Appointment handlers (existing code...)
   const handleAppointmentSubmit = async () => {
     if (!appointmentFormData.doctorId || !appointmentFormData.availabilitySlotId || !appointmentFormData.reasonForVisit) {
       return;
@@ -275,20 +541,6 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
     }
   };
 
-  const [reason, setReason] = useState(appointmentFormData.reasonForVisit);
-
-  const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setReason(e.target.value);
-    setAppointmentFormData(prev => ({
-      ...prev,
-      reasonForVisit: e.target.value
-    }));
-  };
-
-  useEffect(() => {
-    console.log('Appointment form re-rendered');
-  }, [appointmentFormData]);
-
   const handleDoctorSelect = (doctorId: string) => {
     const selectedDoctor = doctorsWithAvailability.find(d => d.id === doctorId);
     if (selectedDoctor) {
@@ -332,133 +584,143 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
     };
   };
 
+  // Component definitions (AppointmentForm remains the same...)
   const AppointmentForm = React.memo(() => {
-    const [localReason, setLocalReason] = useState(appointmentFormData.reasonForVisit);
     return (
-    <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-      <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-3 flex items-center">
-        <Calendar className="w-4 h-4 mr-2" />
-        Schedule Appointment
-      </h4>
+      <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+        <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-3 flex items-center">
+          <Calendar className="w-4 h-4 mr-2" />
+          Schedule Appointment
+        </h4>
 
-      {isLoadingSlots ? (
-        <div className="text-center py-4">
-          <div className="inline-flex items-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-            Loading available doctors...
+        {isLoadingSlots ? (
+          <div className="text-center py-4">
+            <div className="inline-flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+              Loading available doctors...
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Select Doctor ({doctorsWithAvailability.length} available)
-            </label>
-            <select
-              value={appointmentFormData.doctorId}
-              onChange={(e) => handleDoctorSelect(e.target.value)}
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            >
-              <option value="">Choose a doctor...</option>
-              {doctorsWithAvailability.map(doctor => (
-                <option key={doctor.id} value={doctor.id}>
-                  Dr. {doctor.firstName} {doctor.lastName} - {doctor.specialization}
-                  ({doctor.availableSlots.length} slots available) - ${doctor.consultationFee}
-                </option>
-              ))}
-            </select>
-            {doctorsWithAvailability.length === 0 && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                No doctors with available slots at the moment. Please try again later.
-              </p>
-            )}
-          </div>
-
-          {appointmentFormData.doctorId && (
+        ) : (
+          <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Available Time Slots ({availableSlotsForSelectedDoctor.length} available)
+                Select Doctor ({doctorsWithAvailability.length} available)
               </label>
               <select
-                value={appointmentFormData.availabilitySlotId}
-                onChange={(e) => handleSlotSelect(e.target.value)}
+                value={appointmentFormData.doctorId}
+                onChange={(e) => handleDoctorSelect(e.target.value)}
                 className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               >
-                <option value="">Choose a time slot...</option>
-                {availableSlotsForSelectedDoctor.map(slot => {
-                  const startDateTime = formatDateTime(slot.startTime);
-                  const endDateTime = formatDateTime(slot.endTime);
-                  return (
-                    <option key={slot.id} value={slot.id}>
-                      {startDateTime.date} - {startDateTime.time} to {endDateTime.time}
-                      {slot.type && slot.type !== 'standard' && ` (${slot.type})`}
-                    </option>
-                  );
-                })}
+                <option value="">Choose a doctor...</option>
+                {doctorsWithAvailability.map(doctor => (
+                  <option key={doctor.id} value={doctor.id}>
+                    Dr. {doctor.firstName} {doctor.lastName} - {doctor.specialization}
+                    ({doctor.availableSlots.length} slots available) - ${doctor.consultationFee}
+                  </option>
+                ))}
               </select>
-              {availableSlotsForSelectedDoctor.length === 0 && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  No available slots for this doctor.
-                </p>
-              )}
             </div>
-          )}
 
-          {appointmentFormData.doctorId && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Doctor Information
-              </label>
-              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md text-sm">
-                {(() => {
-                  const selectedDoctor = doctorsWithAvailability.find(d => d.id === appointmentFormData.doctorId);
-                  if (!selectedDoctor) return null;
-
-                  return (
-                    <div className="space-y-1">
-                      <p><strong>Name:</strong> Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}</p>
-                      <p><strong>Specialization:</strong> {selectedDoctor.specialization}</p>
-                      <p><strong>Qualification:</strong> {selectedDoctor.qualification}</p>
-                      <p><strong>Consultation Fee:</strong> ${selectedDoctor.consultationFee}</p>
-                      <p><strong>License:</strong> {selectedDoctor.licenseNumber}</p>
-                    </div>
-                  );
-                })()}
+            {appointmentFormData.doctorId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Available Time Slots ({availableSlotsForSelectedDoctor.length} available)
+                </label>
+                <select
+                  value={appointmentFormData.availabilitySlotId}
+                  onChange={(e) => handleSlotSelect(e.target.value)}
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">Choose a time slot...</option>
+                  {availableSlotsForSelectedDoctor.map(slot => {
+                    const startDateTime = formatDateTime(slot.startTime);
+                    const endDateTime = formatDateTime(slot.endTime);
+                    return (
+                      <option key={slot.id} value={slot.id}>
+                        {startDateTime.date} - {startDateTime.time} to {endDateTime.time}
+                        {slot.type && slot.type !== 'standard' && ` (${slot.type})`}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason for Visit</label>
+              <textarea
+                value={appointmentFormData.reasonForVisit}
+                onChange={(e) => setAppointmentFormData(prev => ({ ...prev, reasonForVisit: e.target.value }))
+                }
+                placeholder="Please describe your reason for the appointment..."
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                rows={3}
+              />
             </div>
-          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason for Visit</label>
-            <textarea
-              value={localReason}
-              onChange={(e) => setLocalReason(e.target.value)}
-              placeholder="Please describe your reason for the appointment..."
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-              rows={3}
-            />
+            <div className="flex space-x-2">
+              <button
+                onClick={handleAppointmentSubmit}
+                disabled={!appointmentFormData.doctorId || !appointmentFormData.availabilitySlotId || !appointmentFormData.reasonForVisit}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Schedule Appointment
+              </button>
+              <button
+                onClick={() => setShowAppointmentForm(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
+        )}
+      </div>
+    );
 
-          <div className="flex space-x-2">
-            <button
-              onClick={handleAppointmentSubmit}
-              disabled={!appointmentFormData.doctorId || !appointmentFormData.availabilitySlotId || !appointmentFormData.reasonForVisit}
-              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Schedule Appointment
-            </button>
-            <button
-              onClick={() => setShowAppointmentForm(false)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-    )
   });
+
+  const handleViewPrescription = async (prescriptionName: string) => {
+    if (!isAuthenticated) return;
+    
+    try {
+      // Use the authenticated question API to get prescription info
+      const response = await askQuestionAuthenticated(`who prescribed ${prescriptionName}`);
+      
+      const infoMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: response.answer,
+        timestamp: new Date(),
+        confidence: response.confidence,
+        sources: response.sources,
+        escalate: response.escalate,
+        reasoning: response.reasoning,
+      };
+      setMessages(prev => [...prev, infoMessage]);
+    } catch (err) {
+      console.error('Failed to get prescription info:', err);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: `❌ **Error Getting Prescription Info**\n\nI couldn't retrieve information about "${prescriptionName}" right now. Please try again later.`,
+        timestamp: new Date(),
+        escalate: true,
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+
+  const handleQuickMedicineSearch = () => {
+    setShowMedicineSearch(true);
+    // Optionally focus on the medicine search input
+    setTimeout(() => {
+      const searchInput = document.querySelector('[placeholder*="Search medicines"]') as HTMLInputElement;
+      if (searchInput) {
+        searchInput.focus();
+      }
+    }, 100);
+  };
 
   return (
     <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-lg flex flex-col h-[600px] ${className}`}>
@@ -476,14 +738,25 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
             )}
           </div>
           <div className="flex space-x-2">
-            {isAuthenticated && (
+            {!isAuthenticated && (
               <button
-                onClick={() => setShowAppointmentForm(!showAppointmentForm)}
+                onClick={handleLogin}
                 className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded-full text-xs font-medium transition-colors flex items-center"
               >
-                <Calendar className="w-3 h-3 mr-1" />
-                Schedule ({doctorsWithAvailability.length})
+                <LogIn className="w-3 h-3 mr-1" />
+                Login
               </button>
+            )}
+            {isAuthenticated && (
+              <>
+                <button
+                  onClick={() => setShowAppointmentForm(!showAppointmentForm)}
+                  className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded-full text-xs font-medium transition-colors flex items-center"
+                >
+                  <Calendar className="w-3 h-3 mr-1" />
+                  Schedule ({doctorsWithAvailability.length})
+                </button>
+              </>
             )}
             <button
               onClick={() => setIsEmergencyMode(!isEmergencyMode)}
@@ -504,7 +777,7 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
         )}
       </div>
 
-      {/* Messages */}
+      {/* Messages - removed Quick Actions section */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div key={message.id} className="space-y-2">
@@ -551,6 +824,46 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
               </div>
             </div>
 
+            {/* Login Prompt */}
+            {message.showLoginPrompt && (
+              <div className="ml-8">
+                <LoginPrompt onLogin={handleLogin} onClose={handleCloseLoginPrompt} />
+              </div>
+            )}
+
+            {/* Prescription Display */}
+            {message.showPrescriptions && userPrescriptions.length > 0 && (
+              <div className="ml-8 space-y-3">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+                  <Pill className="w-4 h-4 mr-2" />
+                  Your Prescriptions ({userPrescriptions.length})
+                </h4>
+                {userPrescriptions.map((prescription) => (
+                  <PrescriptionCard
+                    key={prescription.id}
+                    prescription={prescription}
+                    onGetInfo={handleMedicineInfo}
+                    onGetSideEffects={handleMedicineSideEffects}
+                    onGetUsage={handleMedicineUsage}
+                    onViewPrescription={handleViewPrescription}  // Add this line
+                    isLoading={isLoading}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Medicine Search */}
+            {message.showMedicineSearch && (
+              <div className="ml-8">
+                <MedicineSearch
+                  onSearch={handleMedicineSearch}
+                  suggestions={medicineSearchResults}
+                  onSuggestionSelect={handleMedicineSelect}
+                  isLoading={isLoading}
+                />
+              </div>
+            )}
+
             {/* Appointment Form */}
             {message.showAppointmentForm && (
               <div className="ml-8">
@@ -575,10 +888,27 @@ export const HealthBotChat: React.FC<HealthBotChatProps> = ({ className = '' }) 
           </div>
         )}
 
-        {/* Standalone Appointment Form */}
+        {/* Standalone Forms */}
         {showAppointmentForm && (
           <div className="mx-4">
             <AppointmentForm />
+          </div>
+        )}
+
+        {showMedicineSearch && (
+          <div className="mx-4">
+            <MedicineSearch
+              onSearch={handleMedicineSearch}
+              suggestions={medicineSearchResults}
+              onSuggestionSelect={handleMedicineSelect}
+              isLoading={isLoading}
+            />
+          </div>
+        )}
+
+        {showLoginPrompt && (
+          <div className="mx-4">
+            <LoginPrompt onLogin={handleLogin} onClose={handleCloseLoginPrompt} />
           </div>
         )}
 
