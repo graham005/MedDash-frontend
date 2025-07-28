@@ -83,7 +83,7 @@ function AppointmentCard({ appointment, onViewDetails }: AppointmentCardProps) {
                         {appointment.patient?.user?.firstName || 'Unknown'} {appointment.patient?.user?.lastName || ''}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-300 capitalize">
-                        {appointment.reasonForVisit || 'General consultation'}
+                        {appointment.availabilitySlot.type || 'General consultation'}
                     </p>
                     </div>
                     <Badge className={cn('text-xs font-medium px-2 py-1', getStatusColor(appointment.status || 'booked'))}>
