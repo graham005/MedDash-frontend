@@ -18,10 +18,11 @@ import { useMyEMSRequests } from '@/hooks/useEMS';
 import EMSMap from '../EMSMap';
 import { STATUS_CONFIG, PRIORITY_CONFIG, EMERGENCY_TYPE_CONFIG } from '@/api/ems';
 import type { EMSRequest } from '../../../types/types'; 
+import { toast } from 'react-toastify';
 
 export default function PatientEMSDashboard() {
   const navigate = useNavigate();
-  const { data: requests = [], isLoading,  refetch } = useMyEMSRequests();
+  const { data: requests = [], isLoading, refetch } = useMyEMSRequests();
   const [selectedRequest, setSelectedRequest] = useState<EMSRequest | null>(null);
 
   const activeRequests = requests.filter(req => 
@@ -30,7 +31,18 @@ export default function PatientEMSDashboard() {
   const completedRequests = requests.filter(req => 
     ['completed', 'cancelled'].includes(req.status)
   ).slice(0, 5);
-  
+
+  // Check if user has active request
+  const hasActiveRequest = activeRequests.length > 0;
+
+  // Function to handle emergency request navigation
+  const handleEmergencyRequest = () => {
+    if (hasActiveRequest) {
+      toast.error('You already have an active emergency request. Please wait for it to be completed or cancelled before creating a new one.');
+      return;
+    }
+    navigate({ to: '/dashboard/patient/ems/request' });
+  };
 
   if (isLoading) {
     return (
@@ -67,11 +79,14 @@ export default function PatientEMSDashboard() {
               Refresh
             </Button>
             <Button
-              onClick={() => navigate({ to: '/dashboard/patient/ems/request' })}
-              className="bg-red-600 hover:bg-red-700"
+              onClick={handleEmergencyRequest}
+              className={`${hasActiveRequest 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-red-600 hover:bg-red-700'}`}
+              disabled={hasActiveRequest}
             >
               <Plus className="w-4 h-4 mr-2" />
-              Emergency Request
+              {hasActiveRequest ? 'Request Active' : 'Emergency Request'}
             </Button>
           </div>
         </div>
@@ -88,7 +103,7 @@ export default function PatientEMSDashboard() {
                   </h3>
                   <p className="text-sm text-red-600 dark:text-red-400">
                     You have {activeRequests.length} active emergency request{activeRequests.length !== 1 ? 's' : ''}. 
-                    Help is on the way.
+                    Help is on the way. You cannot create new requests until this is completed.
                   </p>
                 </div>
               </div>

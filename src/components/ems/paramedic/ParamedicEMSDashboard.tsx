@@ -13,7 +13,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useActiveEMSRequests, useMyEMSRequests, useUpdateEMSStatus, useUpdateParamedicLocation, useAssignParamedic } from '@/hooks/useEMS';
+import { useActiveEMSRequests, useMyEMSRequests, useUpdateEMSStatus, useUpdateParamedicLocation, useAssignParamedicWithLocation } from '@/hooks/useEMS';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useEMSWebSocket } from '@/hooks/useEMSWebSocket';
 import EMSMap from '../EMSMap';
@@ -29,11 +29,11 @@ export default function ParamedicEMSDashboard() {
   const updateStatus = useUpdateEMSStatus();
   const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
   const updateLocation = useUpdateParamedicLocation();
-  const assignParamedic = useAssignParamedic();
+  const assignParamedicWithLocation = useAssignParamedicWithLocation();
   const [selectedRequest, setSelectedRequest] = useState<EMSRequest | null>(null);
   const [activeRequest, setActiveRequest] = useState<EMSRequest | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{lat: number; lng: number} | null>(null);
 
-  console.log("requests",allRequests)
   const {
     isConnected,
     joinEMSRoom,
@@ -42,10 +42,14 @@ export default function ParamedicEMSDashboard() {
     onNewEMSRequest,
   } = useEMSWebSocket();
 
-  // Get current location and update it every 30 seconds when actively responding
-  useGeolocation({
-    watch: !!activeRequest,
+  // Get current location continuously for availability
+  const { latitude, longitude, error: locationError } = useGeolocation({
+    watch: true, // Always watch location for paramedics
+    enableHighAccuracy: true,
     onUpdate: (position) => {
+      setCurrentLocation({ lat: position.lat, lng: position.lng });
+      
+      // If actively responding to a request, update location in real-time
       if (activeRequest && activeRequest.status === EMSStatus.ENROUTE) {
         updateLocation.mutate({
           requestId: activeRequest.id,
@@ -71,16 +75,12 @@ export default function ParamedicEMSDashboard() {
       });
     });
 
-    // Return a cleanup function that calls unsubscribe
     return () => {
       unsubscribe?.();
     };
   }, [onNewEMSRequest, refetch]);
 
-  // Filter requests assigned to this paramedic or unassigned
-  const myRequests = requests.filter(req =>
-    !req.paramedic || req.paramedic.id === currentUser?.profile?.user?.id // Replace with actual user ID
-  );
+  
 
   const unassignedRequests = requests.filter(req => !req.paramedic);
   const assignedToMe = requests.filter(req =>
@@ -89,25 +89,51 @@ export default function ParamedicEMSDashboard() {
 
   const handleAcceptRequest = async (request: EMSRequest) => {
     try {
-      // Assign paramedic to the request
       if (!currentUser?.profile?.user?.id) {
-        toast.error('User ID not found. Cannot assign paramedic.');
+        toast.error('User authentication error. Please log in again.');
         return;
       }
-      await assignParamedic.mutateAsync({
+
+      if (!currentLocation) {
+        toast.error('Unable to get your current location. Please enable location services and try again.');
+        return;
+      }
+
+      // Check if this paramedic already has an active request
+      const myActiveRequest = assignedToMe.find(req => 
+        ['pending', 'enroute', 'arrived'].includes(req.status)
+      );
+
+      if (myActiveRequest) {
+        toast.error('You already have an active emergency request. Please complete it before accepting another.');
+        return;
+      }
+
+      // Single call to assign with location
+      const assignedRequest = await assignParamedicWithLocation.mutateAsync({
         requestId: request.id,
         paramedicId: currentUser.profile.user.id,
+        lat: currentLocation.lat,
+        lng: currentLocation.lng
       });
-      // Then update status to ENROUTE
-      await updateStatus.mutateAsync({
-        requestId: request.id,
-        statusData: { status: EMSStatus.ENROUTE }
-      });
-      setActiveRequest(request);
+
+      setActiveRequest(assignedRequest);
       joinEMSRoom(request.id);
-      toast.success('Request accepted! En route to patient.');
-    } catch (error) {
-      toast.error('Failed to accept request');
+      socketUpdateLocation(request.id, currentLocation.lat, currentLocation.lng);
+      refetch();
+      
+    } catch (error: any) {
+      console.error('Error accepting request:', error);
+      
+      if (error.message.includes('already assigned')) {
+        toast.error('This paramedic is already assigned to an active request.');
+      } else if (error.message.includes('already has an active')) {
+        toast.error('You already have an active request. Complete it before accepting another.');
+      } else if (error.message.includes('location')) {
+        toast.error('Failed to share your location. Please check location permissions.');
+      } else {
+        toast.error(error.message || 'Failed to accept request. Please try again.');
+      }
     }
   };
 
@@ -126,6 +152,10 @@ export default function ParamedicEMSDashboard() {
       toast.error('Failed to update status');
     }
   };
+
+  // Show location permission warning if needed
+  const showLocationWarning = !currentLocation && !locationError;
+  const showLocationError = !!locationError;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 p-4">
@@ -146,6 +176,12 @@ export default function ParamedicEMSDashboard() {
                   {isConnected ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${currentLocation ? 'bg-green-500' : 'bg-orange-500'}`} />
+                <span className="text-sm text-gray-500">
+                  {currentLocation ? 'Location Available' : 'Getting Location...'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -158,6 +194,43 @@ export default function ParamedicEMSDashboard() {
             Refresh
           </Button>
         </div>
+
+        {/* Location Warning */}
+        {showLocationError && (
+          <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+                <div>
+                  <h3 className="font-medium text-red-800 dark:text-red-200">
+                    Location Access Required
+                  </h3>
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {locationError}. Please enable location services to accept emergency requests.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {showLocationWarning && (
+          <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <MapPin className="w-6 h-6 text-yellow-600 animate-pulse" />
+                <div>
+                  <h3 className="font-medium text-yellow-800 dark:text-yellow-200">
+                    Getting Your Location
+                  </h3>
+                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                    We're getting your current location to enable emergency response. Please allow location access.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Active Request Alert */}
         {activeRequest && (
@@ -173,6 +246,7 @@ export default function ParamedicEMSDashboard() {
                     <p className="text-sm text-blue-600 dark:text-blue-400">
                       {EMERGENCY_TYPE_CONFIG[activeRequest.emergencyType].label} •
                       {PRIORITY_CONFIG[activeRequest.priority].label} Priority
+                      {currentLocation && ` • Location: ${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}`}
                     </p>
                   </div>
                 </div>
@@ -253,13 +327,13 @@ export default function ParamedicEMSDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Response Time
+                    Location Status
                   </p>
-                  <p className="text-2xl font-bold text-green-600">
-                    8min
+                  <p className="text-xl font-bold text-green-600">
+                    {currentLocation ? 'Available' : 'Pending'}
                   </p>
                 </div>
-                <Clock className="w-8 h-8 text-green-600" />
+                <MapPin className={`w-8 h-8 ${currentLocation ? 'text-green-600' : 'text-orange-600'}`} />
               </div>
             </CardContent>
           </Card>
@@ -350,9 +424,15 @@ export default function ParamedicEMSDashboard() {
                                 handleAcceptRequest(request);
                               }}
                               className="flex-1 bg-blue-600 hover:bg-blue-700"
-                              disabled={updateStatus.isPending || assignParamedic.isPending || !!request.paramedic}
+                              disabled={
+                                updateStatus.isPending || 
+                                assignParamedicWithLocation.isPending || 
+                                updateLocation.isPending ||
+                                !!request.paramedic ||
+                                !currentLocation
+                              }
                             >
-                              {assignParamedic.isPending || updateStatus.isPending ? (
+                              {assignParamedicWithLocation.isPending || updateStatus.isPending || updateLocation.isPending ? (
                                 <>
                                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                                   Assigning...
@@ -361,6 +441,11 @@ export default function ParamedicEMSDashboard() {
                                 <>
                                   <Car className="w-4 h-4 mr-2" />
                                   En Route
+                                </>
+                              ) : !currentLocation ? (
+                                <>
+                                  <MapPin className="w-4 h-4 mr-2" />
+                                  Getting Location...
                                 </>
                               ) : (
                                 <>
