@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { ModeToggle } from './mode-toggle'
 import { Button } from './ui/button'
 
@@ -19,10 +20,10 @@ export default function Header() {
       </div>
       <div className='flex items-center'>
         <Button asChild variant={'outline'} className='gap-1 mr-2 bg-slate-800 dark:hover:bg-slate-500'>
-          <a href="/login">Login</a>
+          <Link to="/login">Login</Link>
         </Button>
         <Button asChild variant={'outline'} className='gap-1 mr-2 bg-slate-800 dark:hover:bg-slate-500'>
-          <a href="/register">Register</a>
+          <Link to="/register">Register</Link>
         </Button>
         <ModeToggle />
       </div>
