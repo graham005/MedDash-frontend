@@ -27,7 +27,7 @@ export default function ParamedicEMSDashboard() {
   const { data: requests = [], isLoading, refetch } = useActiveEMSRequests();
   const { data: allRequests = []} = useMyEMSRequests()
   const updateStatus = useUpdateEMSStatus();
-  const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
+  const { data: currentUser} = useCurrentUser();
   const updateLocation = useUpdateParamedicLocation();
   const assignParamedicWithLocation = useAssignParamedicWithLocation();
   const [selectedRequest, setSelectedRequest] = useState<EMSRequest | null>(null);
@@ -43,7 +43,7 @@ export default function ParamedicEMSDashboard() {
   } = useEMSWebSocket();
 
   // Get current location continuously for availability
-  const { latitude, longitude, error: locationError } = useGeolocation({
+  const { error: locationError } = useGeolocation({
     watch: true, // Always watch location for paramedics
     enableHighAccuracy: true,
     onUpdate: (position) => {

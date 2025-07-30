@@ -54,7 +54,7 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
     isPending: isCreatingAppointment,
     error: createAppointmentError,
   } = useCreateAppointment();
-  const { data: allAvailabilitySlots = [], isLoading: isLoadingSlots } = useAllAvailabilitySlots();
+  const { data: allAvailabilitySlots = [] } = useAllAvailabilitySlots();
   const updateAvailabilitySlot = useUpdateAvailabilitySlot();
   const initializePayment = useInitializePayment();
   const verifyPayment = useVerifyPayment();

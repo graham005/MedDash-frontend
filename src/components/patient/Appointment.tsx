@@ -5,19 +5,16 @@ import {
   useUpdateAppointment
 } from '@/hooks/useAppointments';
 import { useAllAvailabilitySlots } from '@/hooks/useAvailability';
-import { useCurrentUser } from '@/hooks/useAuth';
 import { useNavigate } from '@tanstack/react-router';
 import {
   CalendarIcon,
   VideoCameraIcon,
-  ExclamationTriangleIcon,
   EyeIcon,
-  PlusIcon,
   ArrowRightIcon,
   ChatBubbleLeftRightIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
-import { format, isToday, isTomorrow, isPast } from 'date-fns';
+import { format, isPast } from 'date-fns';
 import type { Appointment } from '@/api/appointments';
 import { useInitializePayment, useVerifyPayment } from '@/hooks/usePayments';
 import { toast } from 'sonner';
@@ -38,7 +35,6 @@ interface Doctor {
 
 export default function AppointmentPage() {
   const navigate = useNavigate();
-  const { data: currentUser } = useCurrentUser();
   const { data: appointments = [], isLoading, error } = usePatientAppointments();
   const { data: availabilitySlots = [] } = useAllAvailabilitySlots();
   const { mutate: cancelAppointment, isPending: isCancellingAppointment } = useCancelAppointment();

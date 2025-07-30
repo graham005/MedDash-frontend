@@ -11,15 +11,10 @@ import { toast } from 'sonner';
 
 // Create EMS request with better error handling
 export function useCreateEMSRequest() {
-  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: (requestData: CreateEmsRequestDto) => emsAPI.createRequest(requestData),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['ems-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['my-ems-requests'] });
-      toast.success('Emergency request created successfully!');
-    },
+    
     onError: (error: any) => {
       console.error('EMS Request Error:', error);
       

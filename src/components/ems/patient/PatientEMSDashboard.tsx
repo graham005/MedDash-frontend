@@ -12,7 +12,6 @@ import {
   Plus, 
   Eye, 
   RefreshCw, 
-  Target, 
   User 
 } from 'lucide-react';
 import { format } from 'date-fns';

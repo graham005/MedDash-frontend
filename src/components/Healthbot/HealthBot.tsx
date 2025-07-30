@@ -20,7 +20,7 @@ export default function HealthBot() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch all doctor availability slots
-  const { data: allSlots = [], isLoading: slotsLoading } = useAllAvailabilitySlots();
+  const { data: allSlots = [] } = useAllAvailabilitySlots();
 
   // Extract unique doctors from slots
   const doctorOptions = useMemo(() => {

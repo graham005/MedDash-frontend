@@ -5,7 +5,6 @@ import { useCurrentUser } from "@/hooks/useAuth";
 import { usePatientAppointments } from "@/hooks/useAppointments";
 import { usePrescriptions } from "@/hooks/usePrescriptions";
 import { useMedicines } from "@/hooks/usePharmacy";
-import { usePharmacyOrders } from "@/hooks/usePharmacy";
 import { useCreateAppointment } from "@/hooks/useAppointments";
 
 const SYSTEM_PROMPT = `
@@ -43,7 +42,6 @@ export function useHealthBot() {
   const { data: appointments = [] } = usePatientAppointments();
   const { data: prescriptions = [] } = usePrescriptions();
   const { data: medicines = [] } = useMedicines();
-  const { data: pharmacyOrders = [] } = usePharmacyOrders();
   const createAppointment = useCreateAppointment();
 
   // Helper: Format lists for chat bubbles
@@ -212,7 +210,6 @@ export function useHealthBot() {
         /^(NAVIGATE|BOOK_APPOINTMENT|SHOW_PRESCRIPTIONS|SHOW_APPOINTMENTS|GET_MEDICINES_FOR_PRESCRIPTION|MEDICINE_INFO|SHOW_DOCTORS)(:.*)?/
       );
       if (intentMatch) {
-        const intent = intentMatch[1];
         const arg = intentMatch[2]?.slice(1);
         const handled = await handleIntent(intentMatch[0], arg);
 

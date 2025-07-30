@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Trash2, Send, Save, X, Check, AlertCircle, ChevronDown, ArrowLeft, Users, RefreshCw } from 'lucide-react';
+import { Search, Plus, Trash2, Send, X, Check, ChevronDown, ArrowLeft, Users, RefreshCw } from 'lucide-react';
 import { useCreatePrescription } from '@/hooks/usePrescriptions';
 import { useMedicines } from '@/hooks/usePharmacy';
 import { useDoctorPatients } from '@/hooks/useAppointments';
@@ -204,7 +204,7 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
     };
 
     // Handle form submission
-    const handleSubmit = async (isDraft: boolean = false) => {
+    const handleSubmit = async (_isDraft: boolean = false) => {
         if (!validateForm() || !selectedPatient) return;
 
         const prescriptionData: CreatePrescriptionDto = {

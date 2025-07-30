@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
 import { useUserConversations } from '@/hooks/useMessaging';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
@@ -8,7 +7,6 @@ import MessagingModal from './MessagingModal';
 export default function MessagesPage() {
   const { data, isLoading } = useUserConversations();
   const [openConversation, setOpenConversation] = useState<null | string>(null);
-  const navigate = useNavigate();
 
   // Flatten all started conversations (appointments and pharmacy orders)
   const conversations = [
