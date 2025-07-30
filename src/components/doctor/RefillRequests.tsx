@@ -6,7 +6,6 @@ import {
   Pill, 
   Check, 
   X, 
-  Calendar,
   FileText,
   AlertTriangle,
   Search

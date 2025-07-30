@@ -72,11 +72,11 @@ export default function Pharmacist() {
                       <td className="px-4 py-3 text-xs text-indigo-900 dark:text-indigo-200">{profile.pharmacyName || "-"}</td>
                       <td className="px-4 py-3 text-xs text-indigo-900 dark:text-indigo-200">{profile.licenseNumber || "-"}</td>
                       <td className="px-4 py-3">
-                        <span className={`flex items-center gap-2 text-xs font-semibold ${STATUS_COLORS[pharmacist.status || UserStatus.ACTIVE]}`}>
+                        <span className={`flex items-center gap-2 text-xs font-semibold ${STATUS_COLORS[pharmacist.userStatus || UserStatus.ACTIVE]}`}>
                           <span className="w-2 h-2 rounded-full inline-block" style={{
-                            background: pharmacist.status === UserStatus.ACTIVE ? "#6366f1" : pharmacist.status === UserStatus.PENDING ? "#fbbf24" : "#ef4444"
+                            background: pharmacist.userStatus === UserStatus.ACTIVE ? "#6366f1" : pharmacist.userStatus === UserStatus.PENDING ? "#fbbf24" : "#ef4444"
                           }} />
-                          {STATUS_LABELS[pharmacist.status || UserStatus.ACTIVE]}
+                          {STATUS_LABELS[pharmacist.userStatus || UserStatus.ACTIVE]}
                         </span>
                       </td>
                     </tr>

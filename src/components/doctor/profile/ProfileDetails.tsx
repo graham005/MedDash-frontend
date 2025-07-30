@@ -1,7 +1,6 @@
 import { useProfile } from '@/hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from '@tanstack/react-router';
 import { ShieldCheckIcon } from '@heroicons/react/24/solid';
 import ProfileHeader from './Header';
 import { useState } from 'react';
@@ -18,7 +17,6 @@ export default function DoctorProfileDetails() {
 
   const openEditModal = () => setIsEditModalOpen(true);
   const closeEditModal = () => setIsEditModalOpen(false);
-  const navigate = useNavigate();
 
   if (isLoading) {
     return <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading profile...</div>;

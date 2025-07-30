@@ -67,11 +67,11 @@ export default function Admins() {
                     </td>
                     <td className="px-4 py-3 text-xs text-indigo-500 dark:text-indigo-300">{admin.email}</td>
                     <td className="px-4 py-3">
-                      <span className={`flex items-center gap-2 text-xs font-semibold ${STATUS_COLORS[admin.status || UserStatus.ACTIVE]}`}>
+                      <span className={`flex items-center gap-2 text-xs font-semibold ${STATUS_COLORS[admin.userStatus || UserStatus.ACTIVE]}`}>
                         <span className="w-2 h-2 rounded-full inline-block" style={{
-                          background: admin.status === UserStatus.ACTIVE ? "#6366f1" : admin.status === UserStatus.PENDING ? "#fbbf24" : "#ef4444"
+                          background: admin.userStatus === UserStatus.ACTIVE ? "#6366f1" : admin.userStatus === UserStatus.PENDING ? "#fbbf24" : "#ef4444"
                         }} />
-                        {STATUS_LABELS[admin.status || UserStatus.ACTIVE]}
+                        {STATUS_LABELS[admin.userStatus || UserStatus.ACTIVE]}
                       </span>
                     </td>
                   </tr>

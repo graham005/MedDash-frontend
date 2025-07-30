@@ -31,6 +31,8 @@ interface EMSMapWithRouteProps {
   activeRequest: EMSRequest | null;
   onRequestSelect?: (request: EMSRequest) => void;
   className?: string;
+  showPatientLocation?: boolean;      // <-- Add this line
+  showParamedicLocation?: boolean;    // <-- Add this line
 }
 
 // Enhanced Route display component with map invalidation

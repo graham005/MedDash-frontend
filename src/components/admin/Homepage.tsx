@@ -15,8 +15,6 @@ import {
   useUserGrowth 
 } from "@/hooks/useAdmin";
 import { toast } from "sonner";
-import { useCurrentUser } from "@/hooks/useAuth";
-
 // Add ConfirmationDialog component
 function ConfirmationDialog({
   open,
@@ -131,9 +129,9 @@ function UserGrowthChart({ data, options }: { data: any; options: any }) {
               maxRotation: 45,
               minRotation: 0,
               // Custom callback to shorten date labels
-              callback: function(value: number, index: number) {
+              callback: function(value: number) {
                 const label = this.getLabelForValue(value);
-                if (!label) return '';
+                if (!label) return ''
                 
                 // Parse different date formats and shorten them
                 const date = new Date(label);
@@ -279,7 +277,7 @@ const getTimeAgo = (timestamp: string) => {
 
 export default function Homepage() {
   const { data: users = [], isLoading: isLoadingUsers } = useUsers();
-  const { data: payments = [], isLoading: isLoadingPayments } = usePayments();
+  const { data: payments = [] } = usePayments();
   const updateUser = useUpdateUser();
   const [search, setSearch] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState("6months");

@@ -72,11 +72,11 @@ export default function Doctors() {
                       <td className="px-4 py-3 text-xs text-indigo-900 dark:text-indigo-200">{profile.specialization || "-"}</td>
                       <td className="px-4 py-3 text-xs text-indigo-900 dark:text-indigo-200">{profile.qualification || "-"}</td>
                       <td className="px-4 py-3">
-                        <span className={`flex items-center gap-2 text-xs font-semibold ${STATUS_COLORS[doctor.status || UserStatus.ACTIVE]}`}>
+                        <span className={`flex items-center gap-2 text-xs font-semibold ${STATUS_COLORS[doctor.userStatus || UserStatus.ACTIVE]}`}>
                           <span className="w-2 h-2 rounded-full inline-block" style={{
-                            background: doctor.status === UserStatus.ACTIVE ? "#6366f1" : doctor.status === UserStatus.PENDING ? "#fbbf24" : "#ef4444"
+                            background: doctor.userStatus === UserStatus.ACTIVE ? "#6366f1" : doctor.userStatus === UserStatus.PENDING ? "#fbbf24" : "#ef4444"
                           }} />
-                          {STATUS_LABELS[doctor.status || UserStatus.ACTIVE]}
+                          {STATUS_LABELS[doctor.userStatus || UserStatus.ACTIVE]}
                         </span>
                       </td>
                     </tr>

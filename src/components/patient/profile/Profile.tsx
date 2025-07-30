@@ -3,7 +3,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from '@tanstack/react-router';
 import { ShieldCheckIcon } from '@heroicons/react/24/solid';
-import { HealthBot } from '@/components/Healthbot/HealthBot';
 
 function getInitials(firstName?: string, lastName?: string) {
   if (!firstName && !lastName) return '';

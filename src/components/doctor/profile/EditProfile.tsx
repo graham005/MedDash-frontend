@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useCurrentUser, useUpdateDoctorProfile } from '@/hooks/useAuth';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from '@tanstack/react-router';
 import type { TDoctorProfile } from '@/types/types';

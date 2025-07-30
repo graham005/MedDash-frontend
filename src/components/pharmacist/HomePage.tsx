@@ -4,7 +4,7 @@ import { usePharmacyOrders, useMedicines } from '@/hooks/usePharmacy';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { TruckIcon, ClipboardDocumentIcon, BeakerIcon, PlusIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { TruckIcon, ClipboardDocumentIcon, BeakerIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import CreatePharmacistProfileModal from './profile/CreateProfile';
 
 const STATUS_LABELS: Record<string, string> = {

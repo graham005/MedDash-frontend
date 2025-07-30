@@ -13,13 +13,6 @@ function getInitials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-const statusColors: Record<string, string> = {
-  paid: "bg-indigo-200 text-indigo-900",
-  pending: "bg-blue-900 text-white",
-  failed: "bg-red-100 text-red-700",
-  refunded: "bg-blue-900 text-white",
-};
-
 export default function Payments() {
   const { data: payments = [], isLoading } = usePayments();
   const [search, setSearch] = useState("");

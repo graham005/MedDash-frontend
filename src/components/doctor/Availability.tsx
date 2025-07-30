@@ -1,13 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isBefore, startOfDay, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Clock, X } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   useDoctorAvailabilitySlots,
   useCreateAvailabilitySlot,
   useDeleteAvailabilitySlot
 } from '@/hooks/useAvailability'; // <-- Import hooks directly
-import { availabilityApi } from '@/api/availability';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -41,7 +39,6 @@ export default function AvailabilityPlanner({ className }: AvailabilityPlannerPr
   const [isAddingSlot, setIsAddingSlot] = useState(false);
   const [conflicts, setConflicts] = useState<string[]>([]);
 
-  const queryClient = useQueryClient();
 
   // Use the hooks directly
   const { data: availabilitySlots = [], isLoading: isLoadingAvailability, error: availabilityError } = useDoctorAvailabilitySlots();

@@ -380,8 +380,7 @@ export default function AdminEMSDashboard() {
                 onRequestSelect={setSelectedRequest}
                 showPatientLocation={true}
                 showParamedicLocation={true}
-                className="h-[600px]"
-              />
+                className="h-[600px]" paramedicLocation={null} activeRequest={null}              />
             </CardContent>
           </Card>
         </div>

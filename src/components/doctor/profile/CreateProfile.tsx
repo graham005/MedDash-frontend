@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useCreateDoctorProfile } from '@/hooks/useAuth';
-import { useCurrentUser } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from '@tanstack/react-router';
 import { X } from 'lucide-react';
@@ -11,7 +10,6 @@ interface CreateProfileModalProps {
 }
 
 export default function CreateDoctorProfileModal({ isOpen, onClose }: CreateProfileModalProps) {
-  const { data: currentUser } = useCurrentUser();
   const [form, setForm] = useState({
     licenseNumber: '',
     yearsOfExperience: 0,
@@ -25,7 +23,6 @@ export default function CreateDoctorProfileModal({ isOpen, onClose }: CreateProf
     certifications: [] as File[],
   });
   const [error, setError] = useState('');
-  const [availabilityStatus, setAvailabilityStatus] = useState(true);
   const createProfile = useCreateDoctorProfile();
   const navigate = useNavigate();
 
