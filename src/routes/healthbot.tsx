@@ -1,4 +1,4 @@
-import { HealthBot } from '@/components/Healthbot/HealthBot'
+import HealthBot from '@/components/Healthbot/HealthBot'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/healthbot')({
