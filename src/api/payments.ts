@@ -25,6 +25,7 @@ export interface Payment {
     notes?: string;
     createdAt: string;
     updatedAt: string;
+    pharmacyOrder?: { id: string }; // <-- Add this line
 }
 
 export interface PaymentInitializeResponse {

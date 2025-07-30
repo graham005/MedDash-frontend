@@ -18,6 +18,7 @@ export interface UpdateMedicineDto {
 }
 
 export interface Medicine {
+  expirationDate: string | number | Date;
   id: string;
   name: string;
   dosage: string;
@@ -33,7 +34,7 @@ export interface Medicine {
       email: string;
     };
     pharmacyName: string;
-    licenceNumber: string;
+    licenseNumber: string;
   };
 }
 

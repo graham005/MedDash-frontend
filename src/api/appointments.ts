@@ -20,6 +20,7 @@ export interface UpdateAppointmentDto {
 }
 
 export interface Appointment {
+  meetingUrl: string | undefined;
   id: string;
   startTime: string;
   endTime: string;
@@ -28,6 +29,7 @@ export interface Appointment {
   patient: {
     id: string;
     user: {
+      phoneNumber: string;
       id: string;
       firstName: string;
       lastName: string;
@@ -35,6 +37,7 @@ export interface Appointment {
     };
   };
   doctor: {
+    consultationFee: number;
     id: string;
     user: {
       id: string;
@@ -44,7 +47,7 @@ export interface Appointment {
     };
     specialization: string;
     qualification: string;
-    licenceNumber: string;
+    licenseNumber: string;
   };
   availabilitySlot: {
     id: string;

@@ -11,10 +11,11 @@ export interface UpdateAvailabilityDto {
   startTime?: string;
   endTime?: string;
   type?: 'standard' | 'emergency' | 'consultation';
+  isBooked?: boolean;
 }
 
 export interface AvailabilitySlot {
-  isBooked: any;
+  isBooked: boolean;
   id: string;
   startTime: string;
   endTime: string;
