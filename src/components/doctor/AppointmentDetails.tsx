@@ -220,9 +220,6 @@ export default function AppointmentDetails({ appointmentId }: AppointmentDetails
                         <h3 className="font-semibold text-purple-900 dark:text-purple-100">
                           Video Consultation
                         </h3>
-                        <p className="text-sm text-purple-700 dark:text-purple-300">
-                          Meeting URL: {appointment.meetingUrl || generateMeetingUrl()}
-                        </p>
                       </div>
                     </div>
                     <div className="flex gap-2">
