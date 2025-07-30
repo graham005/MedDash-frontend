@@ -71,7 +71,7 @@ function App() {
             Your Health,<br />
             <span className="underline decoration-2 decoration-white dark:decoration-slate-100">Simplified</span>
           </h1>
-          <p className="text-lg text-slate-200  dark:text-slate-300 max-w-md">
+          <p className="text-lg text-slate-200   dark:text-slate-300 max-w-md">
             Book appointments, manage prescriptions, and connect with doctors—all in one place
           </p>
           <div className="flex gap-4 mt-4">
@@ -84,7 +84,7 @@ function App() {
 
         {/* Image Carousel Section */}
         <div className="flex-1 flex justify-center items-center relative z-10">
-          <div className="relative lg:min-w-120 lg:h-75 mx-auto rounded-lg overflow-hidden">
+          <div className="relative lg:min-w-200 lg:h-120 mx-auto rounded-lg overflow-hidden">
             {/* Images */}
             {heroImages.map((image, index) => (
               <div
