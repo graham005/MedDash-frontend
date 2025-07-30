@@ -6,5 +6,9 @@ export const Route = createFileRoute('/dashboard/pharmacist/profile/create')({
 })
 
 function RouteComponent() {
-  return <div><CreatePharmacistProfile /></div>
+  return (
+    <div>
+      <CreatePharmacistProfile isOpen={true} onClose={() => {}} />
+    </div>
+  )
 }

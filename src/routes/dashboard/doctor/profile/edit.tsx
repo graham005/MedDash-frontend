@@ -6,5 +6,9 @@ export const Route = createFileRoute('/dashboard/doctor/profile/edit')({
 })
 
 function RouteComponent() {
-  return <div>< EditDoctorProfile /></div>
+  return (
+    <div>
+      <EditDoctorProfile isOpen={true} onClose={() => {}} />
+    </div>
+  )
 }

@@ -35,6 +35,7 @@ export interface Appointment {
       lastName: string;
       email: string;
     };
+    dateOfBirth: string;
   };
   doctor: {
     consultationFee: number;

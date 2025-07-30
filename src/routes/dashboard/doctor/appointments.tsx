@@ -1,4 +1,3 @@
-import DoctorAppointments from '@/components/doctor/Appointments'
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/dashboard/doctor/appointments')({

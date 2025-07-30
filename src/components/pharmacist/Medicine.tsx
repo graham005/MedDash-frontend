@@ -27,7 +27,6 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useMedicines, useCreateMedicine, useUpdateMedicine, useDeleteMedicine } from '@/hooks/usePharmacy';
-import { useCurrentUser } from '@/hooks/useAuth';
 import type { Medicine } from '@/api/medicine';
 import { PenIcon, Download } from 'lucide-react';
 
@@ -209,7 +208,7 @@ function MedicineTable({
 
       {/* Table Body */}
       <div className="divide-y divide-gray-200 dark:divide-slate-700">
-        {medicines.map((medicine, index) => {
+        {medicines.map((medicine) => {
           const stockStatus = getStockStatus(medicine);
           const batchNumber = generateBatchNumber(medicine);
           const isSelected = selectedMedicines.includes(medicine.id);
@@ -485,9 +484,8 @@ export default function MedicineInventory() {
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [selectedMedicines, setSelectedMedicines] = useState<string[]>([]);
 
-  const { data: medicines = [], isLoading, error, refetch } = useMedicines();
+  const { data: medicines = [], isLoading,  refetch } = useMedicines();
   const { mutate: deleteMedicine } = useDeleteMedicine();
-  const { data: currentUser } = useCurrentUser();
 
   // Filter medicines
   const filteredMedicines = useMemo(() => {
