@@ -1,317 +1,256 @@
-// src/hooks/useHealthBot.ts
-import { useState, useCallback } from 'react';
-import { apiClient } from '@/api/apiClient';
-import { useCurrentUser } from '@/hooks/useAuth';
-import type { CreateAppointmentDto } from '@/api/appointments';
+import { useState } from "react";
+import { sendToHealthBot, type HealthBotMessage } from "@/api/healthBotApi";
+import { useNavigate } from "@tanstack/react-router";
+import { useCurrentUser } from "@/hooks/useAuth";
+import { usePatientAppointments } from "@/hooks/useAppointments";
+import { usePrescriptions } from "@/hooks/usePrescriptions";
+import { useMedicines } from "@/hooks/usePharmacy";
+import { usePharmacyOrders } from "@/hooks/usePharmacy";
+import { useCreateAppointment } from "@/hooks/useAppointments";
 
-interface BotResponse {
-  answer: string;
-  confidence: number;
-  sources: string[];
-  escalate: boolean;
-  reasoning?: string;
-}
+const SYSTEM_PROMPT = `
+You are HealthBot, a helpful, privacy-conscious healthcare assistant for a web app. 
+- Never answer questions that are not related to health or medical 
+- If asked question that are not related to health and medicine, reply with you are a medical assistant and cant answer questions not relating to medicine.
+- Never give a diagnosis or personal medical advice.
+- For navigation requests, reply with: NAVIGATE:<route>
+- For booking appointments, reply with: BOOK_APPOINTMENT
+- For viewing prescriptions, reply with: SHOW_PRESCRIPTIONS
+- For medicine info, reply with: MEDICINE_INFO:<medicine_name>
+- For available doctors, reply with: SHOW_DOCTORS
+- For general medical questions, answer factually and briefly.
+`;
 
-interface BotControllerResponse {
-  success: boolean;
-  data: BotResponse;
-  timestamp: string;
-  requestId?: string;
-}
-
-interface HealthCheckResponse {
-  status: string;
-  knowledgeBaseSize: number;
-  lastUpdate: Date;
-  timestamp: string;
-}
-
-interface Medicine {
-  id: string;
-  name: string;
-  dosage: string;
-  frequency: string;
-  duration: string;
-  quantity: number;
-  manufacturer?: string;
-  price?: number;
-}
-
-interface Prescription {
-  id: string;
-  name: string;
-  prescribedBy: any;
-  prescribedDate: Date;
-  medicines: Medicine[];
-}
-
-interface UseHealthBotReturn {
-  askQuestion: (question: string) => Promise<BotResponse>;
-  askQuestionAuthenticated: (question: string) => Promise<BotResponse>;
-  handleEmergency: (situation: string) => Promise<BotResponse>;
-  scheduleAppointment: (appointmentData: CreateAppointmentDto) => Promise<any>;
-  getUserAppointments: () => Promise<any>;
-  getUserPrescriptions: () => Promise<Prescription[]>;
-  getPrescriptions: () => Promise<BotResponse>;
-  getMedicines: () => Promise<BotResponse>;
-  getWhoPrescribed: (prescriptionName: string) => Promise<BotResponse>;
-  getMedicineInfo: (medicineName: string) => Promise<BotResponse>;
-  getMedicineSideEffects: (medicineName: string) => Promise<BotResponse>;
-  getMedicineUsage: (medicineName: string) => Promise<BotResponse>;
-  searchMedicines: (query: string) => Promise<Medicine[]>;
-  getHealthStatus: () => Promise<HealthCheckResponse>;
-  isLoading: boolean;
-  error: string | null;
-  isAuthenticated: boolean;
-}
-
-export const useHealthBot = (): UseHealthBotReturn => {
-  const [isLoading, setIsLoading] = useState(false);
+export function useHealthBot() {
+  const [messages, setMessages] = useState<HealthBotMessage[]>([
+    { role: "system", content: SYSTEM_PROMPT },
+  ]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+  const [appointmentFormData, setAppointmentFormData] = useState({
+    doctorId: "",
+    date: "",
+    time: "",
+    reason: "",
+  });
+  const [appointmentSuccess, setAppointmentSuccess] = useState<string | null>(null);
+
+  const navigate = useNavigate();
   const { data: currentUser } = useCurrentUser();
-  const isAuthenticated = !!currentUser;
 
-  const askQuestion = useCallback(async (question: string): Promise<BotResponse> => {
-    setIsLoading(true);
-    setError(null);
+  // Data hooks
+  const { data: appointments = [] } = usePatientAppointments();
+  const { data: prescriptions = [] } = usePrescriptions();
+  const { data: medicines = [] } = useMedicines();
+  const { data: pharmacyOrders = [] } = usePharmacyOrders();
+  const createAppointment = useCreateAppointment();
 
-    try {
-      const response = await apiClient.post<BotControllerResponse>(
-        '/health-bot/ask',
-        { question },
-        { timeout: 30000 }
+  // Helper: Format lists for chat bubbles
+  function formatAppointments() {
+    if (!appointments.length) return "You have no upcoming appointments.";
+    return (
+      "Your appointments:\n" +
+      appointments
+        .map(
+          (a: any, i: number) =>
+            `${i + 1}. ${a.doctor?.user?.firstName || "Doctor"} ${a.doctor?.user?.lastName || ""} on ${new Date(a.date).toLocaleString()} (${a.status})`
+        )
+        .join("\n")
+    );
+  }
+
+  function formatPrescriptions() {
+    if (!prescriptions.length) return "You have no prescriptions.";
+    return (
+      "Your prescriptions:\n" +
+      prescriptions
+        .map(
+          (p: any, i: number) =>
+            `${i + 1}. ${p.name} (Prescribed: ${new Date(p.date).toLocaleDateString()})`
+        )
+        .join("\n")
+    );
+  }
+
+  function formatMedicinesForPrescription(prescriptionName: string) {
+    const prescription = prescriptions.find(
+      (p: any) => p.name.toLowerCase() === prescriptionName.toLowerCase()
+    );
+    if (!prescription) return "Prescription not found.";
+    if (!prescription.medications?.length) return "No medicines found for this prescription.";
+    return (
+      `Medicines for "${prescription.name}":\n` +
+      prescription.medications
+        .map(
+          (m: any, i: number) =>
+            `${i + 1}. ${medicines.find((med) => med.id === m.medicineId)?.name || m.medicineId} - ${m.dosage}, ${m.frequency}, ${m.duration}`
+        )
+        .join("\n")
+    );
+  }
+
+  function formatDoctors() {
+    // If you have a hook for doctors, use it. Here is a mock:
+    const doctors = [
+      { id: "1", name: "Dr. Jane Doe", specialty: "Cardiology", available: "Mon, Wed 10am-2pm" },
+      { id: "2", name: "Dr. John Smith", specialty: "Dermatology", available: "Tue, Thu 1pm-5pm" },
+    ];
+    return (
+      "Available doctors:\n" +
+      doctors.map((d, i) => `${i + 1}. ${d.name} (${d.specialty}) - ${d.available}`).join("\n")
+    );
+  }
+
+  // Intent handlers (API or mock)
+  async function handleIntent(intent: string, arg?: string) {
+    // Navigation
+    if (intent.startsWith("NAVIGATE:")) {
+      if (!currentUser) return "Please log in to access this section.";
+      const route = intent.replace("NAVIGATE:", "");
+      // Map AI route to your actual route
+      let actualRoute = route;
+      if (route === "/appointments") actualRoute = "/dashboard/patient/appointments";
+      if (route === "/prescriptions") actualRoute = "/dashboard/patient/prescriptions";
+      if (route === "/doctors") actualRoute = "/dashboard/patient/book-appointment";
+      navigate({ to: actualRoute });
+      return "Navigating you now!";
+    }
+    // Book appointment: show form in chat
+    if (intent === "BOOK_APPOINTMENT") {
+      if (!currentUser) return "Please log in to book an appointment.";
+      setShowAppointmentForm(true);
+      setAppointmentSuccess(null);
+      return "Please fill out the form below to book an appointment.";
+    }
+    // Show prescriptions
+    if (intent === "SHOW_PRESCRIPTIONS") {
+      if (!currentUser) return "Please log in to view your prescriptions.";
+      return formatPrescriptions();
+    }
+    // Show medicines for a prescription
+    if (intent.startsWith("GET_MEDICINES_FOR_PRESCRIPTION:")) {
+      if (!currentUser) return "Please log in to view your prescriptions.";
+      const prescriptionName = arg || intent.split(":")[1];
+      return formatMedicinesForPrescription(prescriptionName);
+    }
+    // Show appointments
+    if (intent === "SHOW_APPOINTMENTS") {
+      if (!currentUser) return "Please log in to view your appointments.";
+      return formatAppointments();
+    }
+    // Medicine info (public)
+    if (intent.startsWith("MEDICINE_INFO:")) {
+      const medName = arg || intent.split(":")[1];
+      const med = medicines.find(
+        (m: any) => m.name.toLowerCase() === medName.toLowerCase()
       );
-
-      if (response.data.success) {
-        return response.data.data;
-      } else {
-        throw new Error('Failed to get response from health bot');
+      if (med) {
+        return `Medicine: ${med.name}`;
       }
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to process question';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
+      return `Here is information about ${medName} (uses, side effects, etc.).`;
     }
-  }, []);
-
-  const askQuestionAuthenticated = useCallback(async (question: string): Promise<BotResponse> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required for this feature');
+    // Show doctors
+    if (intent === "SHOW_DOCTORS") {
+      return formatDoctors();
     }
+    return null;
+  }
 
-    setIsLoading(true);
-    setError(null);
-
+  // Handle appointment form submission
+  async function submitAppointmentForm({
+    availabilitySlotId,
+    startTime,
+    endTime,
+  }: { availabilitySlotId: string; startTime: string; endTime: string }) {
+    if (!currentUser) {
+      setAppointmentSuccess(null);
+      setShowAppointmentForm(false);
+      setMessages((msgs) => [
+        ...msgs,
+        { role: "assistant", content: "You must be logged in to book an appointment." },
+      ]);
+      return;
+    }
     try {
-      const response = await apiClient.post<BotControllerResponse>(
-        '/health-bot/ask-authenticated',
-        { question },
-        { timeout: 30000 }
-      );
-
-      if (response.data.success) {
-        return response.data.data;
-      } else {
-        throw new Error('Failed to get response from health bot');
-      }
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to process question';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  const handleEmergency = useCallback(async (situation: string): Promise<BotResponse> => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await apiClient.post<BotControllerResponse>(
-        '/health-bot/emergency',
-        { situation },
-        { timeout: 10000 }
-      );
-
-      if (response.data.success) {
-        return response.data.data;
-      } else {
-        throw new Error('Failed to handle emergency request');
-      }
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Emergency service unavailable';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const scheduleAppointment = useCallback(async (appointmentData: CreateAppointmentDto): Promise<any> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required to schedule appointments');
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await apiClient.post(
-        '/health-bot/schedule-appointment',
-        appointmentData,
-        { timeout: 10000 }
-      );
-
-      return response.data;
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to schedule appointment';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  const getUserAppointments = useCallback(async (): Promise<any> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required to view appointments');
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await apiClient.get('/health-bot/appointments', {
-        timeout: 10000,
+      await createAppointment.mutateAsync({
+        doctorId: appointmentFormData.doctorId,
+        patientId: currentUser.id,
+        startTime,
+        endTime,
+        reasonForVisit: appointmentFormData.reason,
+        availabilitySlotId,
       });
-
-      return response.data;
+      setAppointmentSuccess("Appointment booked successfully!");
+      setShowAppointmentForm(false);
+      setMessages((msgs) => [
+        ...msgs,
+        { role: "assistant", content: "Your appointment has been booked successfully!" },
+      ]);
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to get appointments';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
+      setAppointmentSuccess(null);
+      setMessages((msgs) => [
+        ...msgs,
+        { role: "assistant", content: "Failed to book appointment. Please try again." },
+      ]);
     }
-  }, [isAuthenticated]);
+  }
 
-  // Medicine-specific methods
-  const getUserPrescriptions = useCallback(async (): Promise<Prescription[]> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required to view prescriptions');
-    }
-
-    setIsLoading(true);
+  async function sendMessage(userMessage: string) {
+    setLoading(true);
     setError(null);
+    const newMessages: HealthBotMessage[] = [
+      ...messages,
+      { role: "user", content: userMessage },
+    ];
+    setMessages(newMessages);
 
     try {
-      const response = await askQuestionAuthenticated('What medicines are in my prescription?');
-      // Parse the response to extract prescription data
-      // This is a simplified implementation - you might need to adjust based on your backend response format
-      return [];
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to get prescriptions';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isAuthenticated, askQuestionAuthenticated]);
-
-  const getPrescriptions = useCallback(async (): Promise<BotResponse> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required to view prescriptions');
-    }
-    return await askQuestionAuthenticated('My prescriptions');
-  }, [isAuthenticated, askQuestionAuthenticated]);
-
-  const getMedicines = useCallback(async (): Promise<BotResponse> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required to view medicines');
-    }
-    return await askQuestionAuthenticated('My medicines');
-  }, [isAuthenticated, askQuestionAuthenticated]);
-
-  const getWhoPrescribed = useCallback(async (prescriptionName: string): Promise<BotResponse> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required for prescription information');
-    }
-    return await askQuestionAuthenticated(`Who prescribed ${prescriptionName}?`);
-  }, [isAuthenticated, askQuestionAuthenticated]);
-
-  const getMedicineInfo = useCallback(async (medicineName: string): Promise<BotResponse> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required for medicine information');
-    }
-
-    return await askQuestionAuthenticated(`Tell me about ${medicineName}`);
-  }, [isAuthenticated, askQuestionAuthenticated]);
-
-  const getMedicineSideEffects = useCallback(async (medicineName: string): Promise<BotResponse> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required for medicine information');
-    }
-
-    return await askQuestionAuthenticated(`What are the side effects of ${medicineName}?`);
-  }, [isAuthenticated, askQuestionAuthenticated]);
-
-  const getMedicineUsage = useCallback(async (medicineName: string): Promise<BotResponse> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required for medicine information');
-    }
-
-    return await askQuestionAuthenticated(`What does ${medicineName} do?`);
-  }, [isAuthenticated, askQuestionAuthenticated]);
-
-  const searchMedicines = useCallback(async (query: string): Promise<Medicine[]> => {
-    if (!isAuthenticated) {
-      throw new Error('Authentication required for medicine search');
-    }
-
-    try {
-      const response = await askQuestionAuthenticated(`Search for medicines: ${query}`);
-      // Parse response for medicine suggestions
-      // This is a simplified implementation
-      return [];
-    } catch (err) {
-      return [];
-    }
-  }, [isAuthenticated, askQuestionAuthenticated]);
-
-  const getHealthStatus = useCallback(async (): Promise<HealthCheckResponse> => {
-    try {
-      const response = await apiClient.get<HealthCheckResponse>(
-        '/health-bot/health',
-        { timeout: 5000 }
+      const aiResponse = await sendToHealthBot(newMessages);
+      // Check for intent commands in the AI response
+      const intentMatch = aiResponse.match(
+        /^(NAVIGATE|BOOK_APPOINTMENT|SHOW_PRESCRIPTIONS|SHOW_APPOINTMENTS|GET_MEDICINES_FOR_PRESCRIPTION|MEDICINE_INFO|SHOW_DOCTORS)(:.*)?/
       );
-      return response.data;
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to get health status';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    }
-  }, []);
+      if (intentMatch) {
+        const intent = intentMatch[1];
+        const arg = intentMatch[2]?.slice(1);
+        const handled = await handleIntent(intentMatch[0], arg);
 
+        // Filter out AI's login warning if user is logged in
+        const loginWarning = /log\s?in|sign\s?in|need to be logged in/i;
+        const shouldShowHandled =
+          !(currentUser && handled && loginWarning.test(handled))
+            ? handled
+            : null;
+
+        setMessages((msgs) => [
+          ...msgs,
+          { role: "assistant", content: shouldShowHandled || aiResponse },
+        ]);
+      } else {
+        setMessages((msgs) => [
+          ...msgs,
+          { role: "assistant", content: aiResponse },
+        ]);
+      }
+    } catch (err: any) {
+      setError("Failed to contact HealthBot.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Expose form state and handlers for the chat UI
   return {
-    askQuestion,
-    askQuestionAuthenticated,
-    handleEmergency,
-    scheduleAppointment,
-    getUserAppointments,
-    getUserPrescriptions,
-    getPrescriptions,
-    getMedicines,
-    getWhoPrescribed,
-    getMedicineInfo,
-    getMedicineSideEffects,
-    getMedicineUsage,
-    searchMedicines,
-    getHealthStatus,
-    isLoading,
+    messages,
+    sendMessage,
+    loading,
     error,
-    isAuthenticated,
+    showAppointmentForm,
+    setShowAppointmentForm,
+    appointmentFormData,
+    setAppointmentFormData,
+    submitAppointmentForm,
+    appointmentSuccess,
   };
-};
+}
