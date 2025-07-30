@@ -488,9 +488,10 @@ export default function ParamedicEMSDashboard() {
               <EMSMap
                 requests={requests}
                 selectedRequest={selectedRequest}
+                paramedicLocation={currentLocation} // <-- pass paramedic's current location here
+                activeRequest={selectedRequest} // <-- pass the selected/active request
                 onRequestSelect={setSelectedRequest}
-                showParamedicLocation={true}
-                className="h-[500px]"
+                className="h-[400px]"
               />
             </CardContent>
           </Card>

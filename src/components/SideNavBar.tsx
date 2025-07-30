@@ -12,6 +12,7 @@ import {
     TruckIcon,
     ShieldExclamationIcon,
     BanknotesIcon,
+    ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/solid";
 import { useLogout } from '@/hooks/useAuth';
 import { ModeToggle } from './mode-toggle';
@@ -53,6 +54,7 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
         { label: "Appointments", icon: CalendarDaysIcon, to: "/dashboard/patient/appointments" },
         { label: "Prescriptions", icon: ClipboardDocumentIcon, to: "/dashboard/patient/prescriptions" },
         { label: "Orders", icon: TruckIcon, to: "/dashboard/patient/orders" },
+        { label: "Messages", icon: ChatBubbleLeftRightIcon, to: "/dashboard/patient/messages" },
         { label: "Emergency", icon: ShieldExclamationIcon, to: "/dashboard/patient/ems" },
         { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/patient/settings" },
     ],
@@ -60,6 +62,7 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
         { label: "Dashboard", icon: ChartBarIcon, to: "/dashboard/doctor" },
         { label: "Availability", icon: UserGroupIcon, to: "/dashboard/doctor/availability" },
         { label: "Appointments", icon: CalendarDaysIcon, to: "/dashboard/doctor/appointments" },
+        { label: "Messages", icon: ChatBubbleLeftRightIcon, to: "/dashboard/doctor/messages" },
         { label: "Prescriptions", icon: ClipboardDocumentIcon, to: "/dashboard/doctor/prescriptions" },
         { label: "Settings", icon: Cog6ToothIcon, to: "/dashboard/doctor/profile" },
     ],

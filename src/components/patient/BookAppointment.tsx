@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { useAllAvailabilitySlots } from '@/hooks/useAvailability';
+import { useAllAvailabilitySlots, useUpdateAvailabilitySlot } from '@/hooks/useAvailability';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useCreateAppointment } from '@/hooks/useAppointments';
 import { useInitializePayment, useVerifyPayment } from '@/hooks/usePayments';
@@ -33,6 +33,13 @@ interface BookAppointmentProps {
   className?: string;
 }
 
+// Helper to get initials from a user's name
+function getInitials(firstName?: string, lastName?: string) {
+  const first = firstName?.[0] || '';
+  const last = lastName?.[0] || '';
+  return (first + last).toUpperCase();
+}
+
 export default function BookAppointment({ className }: BookAppointmentProps) {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -48,22 +55,23 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
     error: createAppointmentError,
   } = useCreateAppointment();
   const { data: allAvailabilitySlots = [], isLoading: isLoadingSlots } = useAllAvailabilitySlots();
+  const updateAvailabilitySlot = useUpdateAvailabilitySlot();
   const initializePayment = useInitializePayment();
   const verifyPayment = useVerifyPayment();
 
-  // Only show doctors who have at least one available slot
+  // Only show doctors who have at least one available (not booked) slot in the future
   const doctors = useMemo(() => {
     const doctorMap = new Map<string, Doctor>();
+    const now = new Date();
     allAvailabilitySlots.forEach(slot => {
-      console.log(slot.type)
-      if (!slot.isBooked) {
+      if (!slot.isBooked && new Date(slot.startTime) > now) {
         doctorMap.set(slot.doctor.id, slot.doctor);
       }
     });
     return Array.from(doctorMap.values());
   }, [allAvailabilitySlots]);
 
-  // Get available time slots for selected doctor and date
+  // Get available time slots for selected doctor and date (only not booked)
   const availableTimeSlots = useMemo(() => {
     if (!selectedDoctor || !selectedDate) return [];
     return allAvailabilitySlots.filter(slot => {
@@ -71,7 +79,12 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
       const slotDoctor = slot.doctor.id === selectedDoctor.id;
       const slotOnSelectedDate = isSameDay(slotDate, selectedDate);
       const slotInFuture = isAfter(slotDate, new Date());
-      return slotDoctor && slotOnSelectedDate && slotInFuture;
+      return (
+        slotDoctor &&
+        slotOnSelectedDate &&
+        slotInFuture &&
+        !slot.isBooked // Only show slots that are not booked
+      );
     });
   }, [selectedDoctor, selectedDate, allAvailabilitySlots]);
 
@@ -116,9 +129,21 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
     }
   };
 
-  const handleBookAppointment = () => {
+  const handleBookAppointment = async () => {
     if (!selectedDoctor || !selectedTimeSlot || !currentUser) return;
 
+    // 1. Mark the slot as booked before creating the appointment
+    try {
+      await updateAvailabilitySlot.mutateAsync({
+        id: selectedTimeSlot.id,
+        data: { isBooked: true },
+      });
+    } catch (err) {
+      toast.error('Failed to reserve the slot. Please try again.');
+      return;
+    }
+
+    // 2. Proceed to create the appointment
     const appointmentData: CreateAppointmentDto = {
       doctorId: selectedDoctor.id,
       patientId: currentUser?.id,
@@ -126,14 +151,20 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
       endTime: selectedTimeSlot.endTime,
       availabilitySlotId: selectedTimeSlot.id,
       status: 'booked',
-      reasonForVisit
+      reasonForVisit,
     };
-
 
     createAppointment(appointmentData, {
       onSuccess: () => {
         setStep('confirm');
-      }
+      },
+      onError: () => {
+        // Optionally, revert isBooked if appointment creation fails
+        updateAvailabilitySlot.mutateAsync({
+          id: selectedTimeSlot.id,
+          data: { isBooked: false },
+        });
+      },
     });
   };
 
@@ -370,11 +401,12 @@ export default function BookAppointment({ className }: BookAppointmentProps) {
                       >
                         <CardContent className="p-4">
                           <div className="flex items-center space-x-4">
-                            <img
-                              src={`https://randomuser.me/api/portraits/${doctor.id.length % 2 === 0 ? 'women' : 'men'}/${Math.abs(doctor.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % 100}.jpg`}
-                              alt={`Dr. ${doctor.user.firstName.toUpperCase()} ${doctor.user.lastName.toUpperCase()}`}
-                              className="w-16 h-16 rounded-full object-cover"
-                            />
+                            <div
+                              className="w-16 h-16 rounded-full bg-indigo-700 flex items-center justify-center text-white font-bold text-2xl"
+                              aria-label={`Dr. ${doctor.user.firstName} ${doctor.user.lastName} initials`}
+                            >
+                              {getInitials(doctor.user.firstName, doctor.user.lastName)}
+                            </div>
                             <div className="flex-1">
                               <h3 className="font-semibold text-lg">
                                 Dr. {doctor.user.firstName} {doctor.user.lastName}

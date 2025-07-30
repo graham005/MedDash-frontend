@@ -9,27 +9,36 @@ import {
   Phone, 
   FileText,
   Navigation,
+  RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { STATUS_CONFIG, PRIORITY_CONFIG, EMERGENCY_TYPE_CONFIG } from '@/api/ems';
 import type { EMSRequest } from '../../types/types'; 
+import { useDistanceTracking } from '@/hooks/useRouteTracking';
 
 interface EMSRequestDetailsProps {
   request: EMSRequest;
   onClose?: () => void;
   showActions?: boolean;
   userRole?: 'patient' | 'paramedic' | 'admin';
+  paramedicLocation?: { lat: number; lng: number } | null;
 }
 
 export default function EMSRequestDetails({ 
   request, 
   onClose, 
   showActions = false,
-  userRole = 'patient'
+  userRole = 'patient',
+  paramedicLocation = null
 }: EMSRequestDetailsProps) {
   const emergencyConfig = EMERGENCY_TYPE_CONFIG[request.emergencyType ];
   const priorityConfig = PRIORITY_CONFIG[request.priority];
   const statusConfig = STATUS_CONFIG[request.status];
+
+  const { distance, isLoading } = useDistanceTracking(
+    paramedicLocation,
+    { lat: request.patientLat, lng: request.patientLng }
+  );
 
   return (
     <Card className="w-full max-w-2xl">
@@ -57,6 +66,51 @@ export default function EMSRequestDetails({
       </CardHeader>
 
       <CardContent className="space-y-6">
+        {/* Route Information for Paramedics */}
+        {userRole === 'paramedic' && paramedicLocation && (
+          <>
+            <div className="space-y-3">
+              <h3 className="font-medium flex items-center gap-2">
+                <Navigation className="w-4 h-4" />
+                Route Information
+              </h3>
+              
+              {isLoading ? (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Calculating route...</span>
+                </div>
+              ) : distance ? (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
+                    <p className="text-gray-500">Distance</p>
+                    <p className="font-medium text-lg">{distance.distanceText}</p>
+                  </div>
+                  <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded">
+                    <p className="text-gray-500">Estimated Time</p>
+                    <p className="font-medium text-lg">{distance.durationText}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500">Unable to calculate route</p>
+              )}
+              
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  const url = `https://www.google.com/maps/dir/?api=1&destination=${request.patientLat},${request.patientLng}`;
+                  window.open(url, '_blank');
+                }}
+              >
+                <Navigation className="w-4 h-4 mr-2" />
+                Open in Google Maps
+              </Button>
+            </div>
+            <Separator />
+          </>
+        )}
+
         {/* Timeline */}
         <div className="space-y-3">
           <h3 className="font-medium flex items-center gap-2">

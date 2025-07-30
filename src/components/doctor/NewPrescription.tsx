@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Trash2, Send, Save, X, Check, AlertCircle, ChevronDown, ArrowLeft, Users } from 'lucide-react';
+import { Search, Plus, Trash2, Send, Save, X, Check, AlertCircle, ChevronDown, ArrowLeft, Users, RefreshCw } from 'lucide-react';
 import { useCreatePrescription } from '@/hooks/usePrescriptions';
 import { useMedicines } from '@/hooks/usePharmacy';
 import { useDoctorPatients } from '@/hooks/useAppointments';
@@ -37,10 +37,10 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
 }) => {
     const [prescriptionName, setPrescriptionName] = useState('');
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(patient || null);
+    const [refillsAllowed, setRefillsAllowed] = useState<number>(0);
     const [medications, setMedications] = useState<MedicationFormData[]>([
         { medicineId: '', dosage: '', frequency: '', duration: '', quantity: 0 }
     ]);
-    const [medicineSearch, setMedicineSearch] = useState('');
     const [searchResults, setSearchResults] = useState<Medicine[]>([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
@@ -86,21 +86,21 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
     // Search medicines
     useEffect(() => {
         if (activeSearchIndex !== null) {
-            if (medicineSearch.trim()) {
+            const searchTerm = medicineSearchTerms[activeSearchIndex] || '';
+            if (searchTerm.trim()) {
                 const filtered = allMedicines.filter(medicine =>
-                    medicine.name.toLowerCase().includes(medicineSearch.toLowerCase()) ||
-                    medicine.manufacturer.toLowerCase().includes(medicineSearch.toLowerCase())
+                    medicine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    medicine.manufacturer.toLowerCase().includes(searchTerm.toLowerCase())
                 );
                 setSearchResults(filtered);
             } else {
-                // Show all medicines when input is focused and empty
                 setSearchResults(allMedicines);
             }
             setShowDropdown(true);
         } else {
             setShowDropdown(false);
         }
-    }, [medicineSearch, allMedicines, activeSearchIndex]);
+    }, [medicineSearchTerms, allMedicines, activeSearchIndex]);
 
     // Add medication
     const addMedication = () => {
@@ -133,7 +133,7 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
     const selectMedicine = (medicine: Medicine, index: number) => {
         updateMedication(index, 'medicine', medicine);
         updateMedication(index, 'medicineId', medicine.id);
-        setMedicineSearch(medicine.name); // Autofill search area with selected medicine name
+        setMedicineSearchTerms(prev => ({ ...prev, [index]: medicine.name }));
         setShowDropdown(false);
         setActiveSearchIndex(null);
     };
@@ -177,6 +177,10 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
             newErrors.validityDate = 'Validity date is required';
         }
 
+        if (refillsAllowed < 0 || refillsAllowed > 12) {
+            newErrors.refillsAllowed = 'Refills allowed must be between 0 and 12';
+        }
+
         medications.forEach((med, index) => {
             if (!med.medicineId) {
                 newErrors[`medication-${index}-medicine`] = 'Medicine selection is required';
@@ -207,7 +211,8 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
             name: prescriptionName,
             patientId: selectedPatient.id,
             date: new Date().toISOString(),
-            validityDate: new Date().toISOString(),
+            validityDate: new Date(validityDate).toISOString(),
+            refillsAllowed: refillsAllowed,
             medications: medications.map(med => ({
                 medicineId: med.medicineId,
                 dosage: med.dosage,
@@ -348,7 +353,7 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
     ];
 
     return (
-        <div className="min-h-screen mx-auto bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen mx-auto bg-gray-50 dark:bg-gray-900 max-w-2xl">
             <div className=" p-6">
                 {/* Header */}
                 <div className="bg-[#021373] rounded-lg p-6 text-white mb-6 shadow-lg">
@@ -398,25 +403,94 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
                             )}
                         </div>
 
-                        {/* Validity Date */}
-                        <div className="mb-6 max-w-2xl mx-auto">
-                            <label className="block text-[#010626] dark:text-white font-medium mb-2">
-                                Validity Date *
-                            </label>
-                            <input
-                                type="date"
-                                value={validityDate}
-                                min={new Date().toISOString().split('T')[0]}
-                                onChange={(e) => setValidityDate(e.target.value)}
-                                className={`w-full p-3 border rounded-lg dark:bg-slate-700 dark:text-white ${errors.validityDate ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'}`}
-                            />
-                            {errors.validityDate && (
-                                <p className="text-red-500 text-sm mt-1">{errors.validityDate}</p>
-                            )}
-                            <p className="text-xs text-gray-500 mt-1">
-                                Select the date until which this prescription is valid.
-                            </p>
+                        {/* Prescription Details Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 max-w-4xl mx-auto">
+                            {/* Validity Date */}
+                            <div>
+                                <label className="block text-[#010626] dark:text-white font-medium mb-2">
+                                    Validity Date *
+                                </label>
+                                <input
+                                    type="date"
+                                    value={validityDate}
+                                    min={new Date().toISOString().split('T')[0]}
+                                    onChange={(e) => setValidityDate(e.target.value)}
+                                    className={`w-full p-3 border rounded-lg dark:bg-slate-700 dark:text-white ${errors.validityDate ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'}`}
+                                />
+                                {errors.validityDate && (
+                                    <p className="text-red-500 text-sm mt-1">{errors.validityDate}</p>
+                                )}
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Select the date until which this prescription is valid.
+                                </p>
+                            </div>
+
+                            {/* Refills Allowed */}
+                            <div>
+                                <label className="block text-[#010626] dark:text-white font-medium mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <RefreshCw className="w-4 h-4" />
+                                        Refills Allowed
+                                    </div>
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        value={refillsAllowed}
+                                        onChange={(e) => setRefillsAllowed(Number(e.target.value))}
+                                        className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8491D9] transition-colors appearance-none pr-10 dark:bg-slate-700 dark:text-white ${errors.refillsAllowed ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'
+                                            }`}
+                                    >
+                                        <option value={0}>No refills (0)</option>
+                                        <option value={1}>1 refill</option>
+                                        <option value={2}>2 refills</option>
+                                        <option value={3}>3 refills</option>
+                                        <option value={4}>4 refills</option>
+                                        <option value={5}>5 refills</option>
+                                        <option value={6}>6 refills</option>
+                                        <option value={7}>7 refills</option>
+                                        <option value={8}>8 refills</option>
+                                        <option value={9}>9 refills</option>
+                                        <option value={10}>10 refills</option>
+                                        <option value={11}>11 refills</option>
+                                        <option value={12}>12 refills (Maximum)</option>
+                                    </select>
+                                    <ChevronDown className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+                                </div>
+                                {errors.refillsAllowed && (
+                                    <p className="text-red-500 text-sm mt-1">{errors.refillsAllowed}</p>
+                                )}
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Number of times patient can request refills before needing a new prescription.
+                                </p>
+                            </div>
                         </div>
+
+                        {/* Refill Information Card */}
+                        {refillsAllowed > 0 && (
+                            <div className="mb-6 max-w-4xl mx-auto">
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                            <RefreshCw className="w-4 h-4 text-white" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">
+                                                Refill Authorization
+                                            </h4>
+                                            <p className="text-sm text-blue-700 dark:text-blue-200 mb-2">
+                                                You are authorizing <strong>{refillsAllowed}</strong> refill{refillsAllowed !== 1 ? 's' : ''} for this prescription.
+                                            </p>
+                                            <ul className="text-xs text-blue-600 dark:text-blue-300 space-y-1">
+                                                <li>• Patient can request refills through the platform</li>
+                                                <li>• Each refill request will require your approval</li>
+                                                <li>• You can grant additional refills during approval if needed</li>
+                                                <li>• Refills reset the prescription status to active</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Medications Section - Centered */}
                         {selectedPatient && (
@@ -472,16 +546,16 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
                                                     <div className="relative">
                                                         <input
                                                             type="text"
-                                                            value={activeSearchIndex === index ? medicineSearch : ''}
+                                                            value={medicineSearchTerms[index] || ''}
                                                             onChange={(e) => {
-                                                                setMedicineSearch(e.target.value);
+                                                                setMedicineSearchTerms(prev => ({ ...prev, [index]: e.target.value }));
                                                                 setActiveSearchIndex(index);
                                                             }}
                                                             onFocus={() => {
                                                                 setActiveSearchIndex(index);
                                                                 setShowDropdown(true);
                                                                 // Show all medicines when focused and input is empty
-                                                                if (!medicineSearch.trim()) setSearchResults(allMedicines);
+                                                                if (!medicineSearchTerms[index]?.trim()) setSearchResults(allMedicines);
                                                             }}
                                                             onBlur={() => {
                                                                 setTimeout(() => {
@@ -624,16 +698,9 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
                                 >
                                     Cancel
                                 </button>
+
                                 <button
                                     onClick={() => handleSubmit(true)}
-                                    disabled={createPrescriptionMutation.isPending}
-                                    className="border border-[#020F59] text-[#020F59] bg-white hover:bg-gray-50 transition-colors px-6 py-2 rounded-lg flex items-center justify-center gap-2 order-2"
-                                >
-                                    <Save className="w-4 h-4" />
-                                    Save Draft
-                                </button>
-                                <button
-                                    onClick={() => handleSubmit(false)}
                                     disabled={createPrescriptionMutation.isPending}
                                     className="bg-[#8491D9] text-white hover:bg-[#7380C8] transition-colors px-6 py-2 rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 order-1 sm:order-3"
                                 >
@@ -658,9 +725,19 @@ const NewPrescription: React.FC<NewPrescriptionProps> = ({
                             <Check className="w-12 h-12 text-white mx-auto mb-2" />
                             <h3 className="text-xl font-bold text-white">Prescription Sent!</h3>
                         </div>
-                        <p className="text-[#010626] dark:text-white text-center mb-6">
-                            The prescription has been successfully created and is now available for pharmacy processing.
-                        </p>
+                        <div className="text-center mb-6">
+                            <p className="text-[#010626] dark:text-white mb-4">
+                                The prescription has been successfully created and is now available for pharmacy processing.
+                            </p>
+                            {refillsAllowed > 0 && (
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                                    <p className="text-sm text-blue-700 dark:text-blue-200">
+                                        <RefreshCw className="w-4 h-4 inline mr-1" />
+                                        <strong>{refillsAllowed}</strong> refill{refillsAllowed !== 1 ? 's' : ''} authorized for this prescription.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
                         <button
                             onClick={handleConfirmationClose}
                             className="bg-[#8491D9] text-white px-6 py-2 rounded-lg hover:bg-[#7380C8] transition-colors w-full"

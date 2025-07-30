@@ -54,7 +54,16 @@ export default function AppointmentPage() {
     appointment: Appointment | null;
   }>({ isOpen: false, appointment: null });
 
-  // Extract unique doctors from availability slots for stats
+  // Calculate available slots count (only slots that are not booked and in the future)
+  const availableSlotsCount = useMemo(() => {
+    if (!availabilitySlots) return 0;
+    return availabilitySlots.filter(slot =>
+      !slot.isBooked && // Only show slots that are not booked
+      new Date(slot.startTime) > new Date()
+    ).length;
+  }, [availabilitySlots]);
+
+  // Extract unique doctors from availability slots for stats (only if they have open slots)
   const availableDoctors = useMemo(() => {
     if (!availabilitySlots) return [];
 
@@ -65,7 +74,7 @@ export default function AppointmentPage() {
       // Only consider slots that are not booked and in the future
       if (
         slot.doctor &&
-        !slot.isBooked &&
+        !slot.isBooked && // Only show slots that are not booked
         new Date(slot.startTime) > now
       ) {
         if (!doctorMap.has(slot.doctor.id)) {
@@ -97,18 +106,9 @@ export default function AppointmentPage() {
     }).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }, [appointments]);
 
-  // Calculate available slots count
-  const availableSlotsCount = useMemo(() => {
-    if (!availabilitySlots) return 0;
-    return availabilitySlots.filter(slot =>
-      !slot.isBooked &&
-      new Date(slot.startTime) > new Date()
-    ).length;
-  }, [availabilitySlots]);
-
   const getDoctorInitials = (doctor: Doctor | undefined) => {
     if (!doctor || !doctor.user) return '';
-    return `${doctor.user.firstName[0] ?? ''}${doctor.user.lastName[0] ?? ''}`;
+    return `${doctor.user.firstName[0].toUpperCase() ?? ''}${doctor.user.lastName[0].toUpperCase() ?? ''}`;
   };
 
   const getAppointmentStatus = (appointment: Appointment) => {
@@ -333,7 +333,7 @@ export default function AppointmentPage() {
                           {status.label}
                         </span>
                         {/* Consultation: Show Join Call if confirmed, else Pay Now */}
-                        {slotType === 'consultation' && isToday(appointmentDate) && appointment.status !== 'cancelled' && (
+                        {slotType === 'consultation'&& appointment.status !== 'cancelled' && (
                           appointment.status === 'confirmed' ? (
                             <a
                               href={appointment.meetingUrl}

@@ -1,11 +1,15 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { usePharmacyOrderById, useCancelPharmacyOrder } from '@/hooks/usePharmacy';
+import { usePharmacyOrderById, useCancelPharmacyOrder, useConfirmOrder } from '@/hooks/usePharmacy';
 import { useMedicines } from '@/hooks/usePharmacy';
-import { useState } from 'react';
+import { useCurrentUser } from '@/hooks/useAuth';
+import { useInitializePayment, usePayments, useVerifyPayment } from '@/hooks/usePayments';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { XCircleIcon } from '@heroicons/react/24/outline';
+import { Loader2, CreditCard } from 'lucide-react';
+import { toast } from 'sonner';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
@@ -25,27 +29,179 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
 };
 
+function PaystackPaymentModal({
+  open,
+  amount,
+  onSuccess,
+  onCancel,
+  authorizationUrl,
+  reference,
+}: {
+  open: boolean;
+  amount: number;
+  onSuccess: () => void;
+  onCancel: () => void;
+  authorizationUrl?: string;
+  reference?: string;
+}) {
+  const verifyPayment = useVerifyPayment();
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handlePaystackSuccess = async () => {
+    if (!reference) {
+      toast.error('Payment reference not found');
+      return;
+    }
+    setIsVerifying(true);
+    try {
+      const verification = await verifyPayment.mutateAsync(reference);
+      if (verification.status === 'success') {
+        onSuccess();
+        toast.success('Payment verified successfully!');
+      } else {
+        toast.error('Payment verification failed');
+      }
+    } catch (error) {
+      toast.error('Payment verification failed');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const openPaystackPage = () => {
+    if (!authorizationUrl) {
+      toast.error('Payment URL not available');
+      return;
+    }
+    const paymentWindow = window.open(
+      authorizationUrl,
+      '_blank',
+      'width=500,height=600,scrollbars=yes,resizable=yes'
+    );
+    if (!paymentWindow) {
+      toast.error('Please allow popups to complete payment');
+      return;
+    }
+    const checkClosed = setInterval(() => {
+      if (paymentWindow.closed) {
+        clearInterval(checkClosed);
+        setTimeout(() => {
+          handlePaystackSuccess();
+        }, 2000);
+      }
+    }, 1000);
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-8 w-full max-w-sm flex flex-col items-center">
+        <CreditCard className="w-10 h-10 text-[#8491D9] mb-4" />
+        <div className="text-lg font-bold mb-2 text-indigo-900 dark:text-white">Payment</div>
+        <div className="mb-4 text-gray-700 dark:text-gray-300 text-center">
+          Amount to pay: <span className="font-bold text-green-700 dark:text-green-400">
+            Ksh.{amount.toLocaleString()}
+          </span>
+        </div>
+        <Button
+          className="w-full mb-2 bg-[#021373] hover:bg-[#8491D9] text-white"
+          onClick={openPaystackPage}
+          disabled={!authorizationUrl || isVerifying}
+        >
+          {isVerifying ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Verifying...
+            </>
+          ) : (
+            'Pay with Paystack'
+          )}
+        </Button>
+        <Button className="w-full" variant="outline" onClick={onCancel}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function PatientOrderDetails() {
   const params = useParams({ strict: false }) as { orderId?: string };
   const orderId = params.orderId!;
   const navigate = useNavigate();
   const { data: order, isLoading, error, refetch } = usePharmacyOrderById(orderId);
   const cancelOrder = useCancelPharmacyOrder();
-  const [actionLoading, setActionLoading] = useState(false);
-
+  const confirmOrder = useConfirmOrder();
+  const { data: currentUser } = useCurrentUser();
+  const initializePayment = useInitializePayment();
   const { data: medicines = [] } = useMedicines();
+  const { data: payments = [] } = usePayments();
+
+  const [actionLoading, setActionLoading] = useState(false);
+  const [payModalOpen, setPayModalOpen] = useState(false);
+  const [paystackUrl, setPaystackUrl] = useState<string | undefined>();
+  const [paystackRef, setPaystackRef] = useState<string | undefined>();
+  const [isPaying, setIsPaying] = useState(false);
+
+  // Map medicineId to name for display
   const medicineMap = medicines.reduce((acc, med) => {
     acc[med.id] = med.name;
     return acc;
   }, {} as Record<string, string>);
+
+  // Find latest payment for this order (by pharmacyOrderId)
+  const latestPayment = payments
+    .filter((p) => p.type === 'pharmacy_order' && p.pharmacyOrder?.id === order?.id)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+  // Show Pay Now if order is pending and no successful payment
+  const shouldShowPayNow =
+    order?.status === 'pending' &&
+    (!latestPayment || latestPayment.status !== 'success');
+
+  // Payment handler
+  const handlePayNow = async () => {
+    if (!currentUser || !order) return;
+    setIsPaying(true);
+    try {
+      const paymentData = {
+        fullName: `${currentUser.profile?.user?.firstName} ${currentUser.profile?.user?.lastName}`,
+        email: currentUser.profile?.user?.email ?? '',
+        phoneNumber: currentUser.profile?.user?.phoneNumber ?? '',
+        amount: order.totalAmount,
+        type: 'pharmacy_order' as 'pharmacy_order',
+        pharmacyOrderId: order.id,
+      };
+      const resp = await initializePayment.mutateAsync(paymentData);
+      setPaystackUrl(resp.paystack_data.authorization_url);
+      setPaystackRef(resp.paystack_data.reference);
+      setPayModalOpen(true);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Failed to initialize payment');
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
+  // Confirm order after successful payment
+  const handlePaymentSuccess = async () => {
+    setPayModalOpen(false);
+    try {
+      await confirmOrder.mutateAsync(orderId);
+      toast.success('Order payment successful! Status is now confirmed.');
+      refetch();
+    } catch (e: any) {
+      toast.error('Payment succeeded but failed to confirm order.');
+      refetch();
+    }
+  };
 
   const handleCancel = async () => {
     setActionLoading(true);
     try {
       await cancelOrder.mutateAsync(orderId);
       refetch();
-    } catch (err) {
-      // Optionally show error
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to cancel order');
     } finally {
       setActionLoading(false);
     }
@@ -114,7 +270,6 @@ export default function PatientOrderDetails() {
               </div>
             </div>
 
-           
             {/* Medications */}
             <div>
               <div className="font-semibold text-[#021373] dark:text-[#8491D9] mb-1">Medications</div>
@@ -150,6 +305,19 @@ export default function PatientOrderDetails() {
               </div>
             </div>
 
+            {/* Pay Now Button */}
+            {shouldShowPayNow && (
+              <div className="flex justify-end pt-2">
+                <Button
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={handlePayNow}
+                  disabled={isPaying}
+                >
+                  {isPaying ? 'Initializing Payment...' : 'Pay Now'}
+                </Button>
+              </div>
+            )}
+
             {/* Cancel Button */}
             {order.status !== 'cancelled' && order.status !== 'completed' && (
               <div className="flex justify-end pt-2">
@@ -172,6 +340,15 @@ export default function PatientOrderDetails() {
           </Button>
         </div>
       </div>
+      {/* Paystack Modal */}
+      <PaystackPaymentModal
+        open={payModalOpen}
+        amount={order.totalAmount}
+        onSuccess={handlePaymentSuccess}
+        onCancel={() => setPayModalOpen(false)}
+        authorizationUrl={paystackUrl}
+        reference={paystackRef}
+      />
     </div>
   );
 }

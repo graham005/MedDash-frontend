@@ -6,12 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { 
   AlertTriangle, 
   MapPin, 
+  Navigation, 
   Clock, 
   Phone, 
-  Navigation,
-  Plus,
-  Eye,
-  RefreshCw
+  Plus, 
+  Eye, 
+  RefreshCw, 
+  Target, 
+  User 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMyEMSRequests } from '@/hooks/useEMS';
@@ -273,9 +275,41 @@ export default function PatientEMSDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
+              {/* Show patient and paramedic info above the map */}
+              {selectedRequest && (
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                  <div className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      Your Location:
+                    </span>
+                    <span className="text-gray-700 dark:text-gray-300 text-sm">
+                      {selectedRequest.patientLat.toFixed(5)}, {selectedRequest.patientLng.toFixed(5)}
+                    </span>
+                  </div>
+                  {selectedRequest.paramedicLat && selectedRequest.paramedicLng && (
+                    <div className="flex items-center gap-2">
+                      <Navigation className="w-5 h-5 text-green-600" />
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        Paramedic Distance:
+                      </span>
+                      <span className="text-gray-700 dark:text-gray-300 text-sm">
+                        {/* This will be dynamically shown by EMSMap's route info panel, but you can show a placeholder here */}
+                        <span id="paramedic-distance-info">Calculating...</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
               <EMSMap
                 requests={activeRequests}
                 selectedRequest={selectedRequest}
+                paramedicLocation={
+                  selectedRequest?.paramedicLat && selectedRequest?.paramedicLng
+                    ? { lat: selectedRequest.paramedicLat, lng: selectedRequest.paramedicLng }
+                    : null
+                }
+                activeRequest={selectedRequest}
                 onRequestSelect={setSelectedRequest}
                 className="h-[400px]"
               />

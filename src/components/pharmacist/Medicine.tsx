@@ -7,9 +7,8 @@ import {
   EllipsisVerticalIcon,
   PencilIcon,
   TrashIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  XCircleIcon
+  Squares2X2Icon,
+  TableCellsIcon
 } from '@heroicons/react/24/outline';
 import { 
   HeartIcon,
@@ -18,18 +17,21 @@ import {
   CubeIcon
 } from '@heroicons/react/24/solid';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useMedicines, useCreateMedicine, useUpdateMedicine, useDeleteMedicine } from '@/hooks/usePharmacy';
 import { useCurrentUser } from '@/hooks/useAuth';
-import type { Medicine, CreateMedicineDto, UpdateMedicineDto } from '@/api/medicine';
+import type { Medicine } from '@/api/medicine';
+import { PenIcon, Download } from 'lucide-react';
+
+type ViewMode = 'cards' | 'table';
 
 interface MedicineCardProps {
   medicine: Medicine;
@@ -139,12 +141,157 @@ function MedicineCard({ medicine, onEdit, onDelete }: MedicineCardProps) {
               className="text-white hover:bg-white/20 p-2"
               onClick={() => onEdit(medicine)}
             >
-              <PlusIcon className="w-4 h-4" />
+              <PenIcon className="w-4 h-4" />
             </Button>
           </div>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+interface MedicineTableProps {
+  medicines: Medicine[];
+  selectedMedicines: string[];
+  onSelectMedicine: (id: string) => void;
+  onSelectAll: (checked: boolean) => void;
+  onEdit: (medicine: Medicine) => void;
+  onDelete: (id: string) => void;
+}
+
+function MedicineTable({ 
+  medicines, 
+  selectedMedicines, 
+  onSelectMedicine, 
+  onSelectAll, 
+  onEdit, 
+  onDelete 
+}: MedicineTableProps) {
+  const generateBatchNumber = (medicine: Medicine) => {
+    const prefix = medicine.name.substring(0, 3).toUpperCase();
+    const year = new Date(medicine.expirationDate).getFullYear();
+    const randomNum = Math.floor(Math.random() * 900) + 100;
+    return `${prefix}-${year}-${randomNum}`;
+  };
+
+  const getStockStatus = (medicine: Medicine) => {
+    const expirationDate = new Date(medicine.expirationDate);
+    const isExpiringSoon = isBefore(expirationDate, addDays(new Date(), 30));
+    const isExpired = isBefore(expirationDate, new Date());
+    const isLowStock = medicine.stock <= 10;
+
+    if (isExpired) return { text: 'Expired', color: 'text-red-600', bgColor: 'bg-red-50' };
+    if (isLowStock) return { text: 'Low Stock', color: 'text-red-600', bgColor: 'bg-red-50' };
+    if (isExpiringSoon) return { text: 'Expiring Soon', color: 'text-orange-600', bgColor: 'bg-orange-50' };
+    return { text: medicine.stock.toString() + ' tablets', color: 'text-gray-900', bgColor: 'bg-gray-50' };
+  };
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+      {/* Table Header */}
+      <div className="bg-indigo-600 dark:bg-indigo-700 text-white">
+        <div className="grid grid-cols-12 gap-4 px-6 py-4 text-sm font-medium">
+          <div className="col-span-1">
+            <Checkbox
+              checked={selectedMedicines.length === medicines.length && medicines.length > 0}
+              onCheckedChange={onSelectAll}
+              className="border-white data-[state=checked]:bg-white data-[state=checked]:text-indigo-600"
+            />
+          </div>
+          <div className="col-span-3">Medication Name</div>
+          <div className="col-span-2">Batch Number</div>
+          <div className="col-span-2">Stock Level</div>
+          <div className="col-span-2">Expiry Date</div>
+          <div className="col-span-1">Manufacturer</div>
+          <div className="col-span-1">Actions</div>
+        </div>
+      </div>
+
+      {/* Table Body */}
+      <div className="divide-y divide-gray-200 dark:divide-slate-700">
+        {medicines.map((medicine, index) => {
+          const stockStatus = getStockStatus(medicine);
+          const batchNumber = generateBatchNumber(medicine);
+          const isSelected = selectedMedicines.includes(medicine.id);
+          
+          return (
+            <div
+              key={medicine.id}
+              className={cn(
+                "grid grid-cols-12 gap-4 px-6 py-4 text-sm hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors",
+                isSelected && "bg-indigo-50 dark:bg-indigo-900/20"
+              )}
+            >
+              <div className="col-span-1 flex items-center">
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={() => onSelectMedicine(medicine.id)}
+                  className="data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                />
+              </div>
+              
+              <div className="col-span-3 flex items-center">
+                <div>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {medicine.name} {medicine.dosage}
+                  </div>
+                  <div className="text-gray-500 dark:text-gray-400 text-xs">
+                    Ksh{medicine.price.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="col-span-2 flex items-center">
+                <div className="font-mono text-gray-700 dark:text-gray-300">
+                  {batchNumber}
+                </div>
+              </div>
+              
+              <div className="col-span-2 flex items-center">
+                <span className={cn(
+                  "px-2 py-1 rounded-full text-xs font-medium",
+                  stockStatus.color,
+                  stockStatus.bgColor
+                )}>
+                  {stockStatus.text}
+                </span>
+              </div>
+              
+              <div className="col-span-2 flex items-center">
+                <div className="text-gray-700 dark:text-gray-300">
+                  {format(new Date(medicine.expirationDate), 'yyyy-MM-dd')}
+                </div>
+              </div>
+              
+              <div className="col-span-1 flex items-center">
+                <div className="text-gray-600 dark:text-gray-400 text-xs truncate">
+                  {medicine.manufacturer}
+                </div>
+              </div>
+              
+              <div className="col-span-1 flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onEdit(medicine)}
+                  className="h-8 w-8 p-0 text-gray-500 hover:text-indigo-600"
+                >
+                  <PencilIcon className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onDelete(medicine.id)}
+                  className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -335,6 +482,8 @@ export default function MedicineInventory() {
   const [stockFilter, setStockFilter] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [selectedMedicines, setSelectedMedicines] = useState<string[]>([]);
 
   const { data: medicines = [], isLoading, error, refetch } = useMedicines();
   const { mutate: deleteMedicine } = useDeleteMedicine();
@@ -378,6 +527,42 @@ export default function MedicineInventory() {
     setEditingMedicine(null);
   };
 
+  const handleSelectMedicine = (id: string) => {
+    setSelectedMedicines(prev => 
+      prev.includes(id) 
+        ? prev.filter(medicineId => medicineId !== id)
+        : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedMedicines(checked ? filteredMedicines.map(m => m.id) : []);
+  };
+
+  const exportToCSV = () => {
+    const headers = ['Medicine Name', 'Dosage', 'Price', 'Stock', 'Manufacturer', 'Expiry Date'];
+    const csvData = filteredMedicines.map(medicine => [
+      medicine.name,
+      medicine.dosage,
+      medicine.price.toString(),
+      medicine.stock.toString(),
+      medicine.manufacturer,
+      format(new Date(medicine.expirationDate), 'yyyy-MM-dd')
+    ]);
+
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'medicine-inventory.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
@@ -396,10 +581,10 @@ export default function MedicineInventory() {
               <div className="w-10 h-10 bg-indigo-600 dark:bg-indigo-500 rounded-lg flex items-center justify-center">
                 <CubeIcon className="w-6 h-6 text-white" />
               </div>
-              PharmaCare
+              Pharmacy Inventory Management
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Manage your medicine inventory efficiently
+              Manage medications, track stock levels, and monitor expiry dates
             </p>
           </div>
         </div>
@@ -476,24 +661,74 @@ export default function MedicineInventory() {
           </div>
         </div>
 
-        {/* Medicine Inventory Header */}
+        {/* Toolbar */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Medicine Inventory
-          </h2>
           <div className="flex items-center gap-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Medicine Inventory
+            </h2>
+            {viewMode === 'table' && selectedMedicines.length > 0 && (
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {selectedMedicines.length} item{selectedMedicines.length !== 1 ? 's' : ''} selected
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {/* View Toggle */}
+            <div className="flex items-center bg-gray-200 dark:bg-slate-700 rounded-lg p-1">
+              <Button
+                size="sm"
+                variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                onClick={() => setViewMode('cards')}
+                className={cn(
+                  "px-3 py-1.5 text-xs",
+                  viewMode === 'cards' 
+                    ? "bg-slate-600 dark:bg-slate-600 shadow-sm" 
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                )}
+              >
+                <Squares2X2Icon className="w-4 h-4 mr-1" />
+                Cards
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                onClick={() => setViewMode('table')}
+                className={cn(
+                  "px-3 py-1.5 text-xs",
+                  viewMode === 'table' 
+                    ? "bg-slate-600 dark:bg-slate-600 shadow-sm" 
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                )}
+              >
+                <TableCellsIcon className="w-4 h-4 mr-1" />
+                Table
+              </Button>
+            </div>
+
+            {/* Export and Add buttons */}
+            <Button 
+              onClick={exportToCSV}
+              size="sm"
+              variant="outline"
+              className="border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+            
             <Button 
               onClick={() => setIsAddDialogOpen(true)}
               size="sm"
               className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white"
             >
               <PlusIcon className="w-4 h-4 mr-2" />
-              Add Medicine
+              Add Medication
             </Button>
           </div>
         </div>
 
-        {/* Medicine Grid */}
+        {/* Medicine Content */}
         {filteredMedicines.length === 0 ? (
           <Card className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
             <CardContent className="p-12 text-center">
@@ -515,7 +750,7 @@ export default function MedicineInventory() {
               </Button>
             </CardContent>
           </Card>
-        ) : (
+        ) : viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredMedicines.map((medicine) => (
               <MedicineCard
@@ -526,6 +761,15 @@ export default function MedicineInventory() {
               />
             ))}
           </div>
+        ) : (
+          <MedicineTable
+            medicines={filteredMedicines}
+            selectedMedicines={selectedMedicines}
+            onSelectMedicine={handleSelectMedicine}
+            onSelectAll={handleSelectAll}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
         )}
 
         {/* Add/Edit Medicine Dialog */}

@@ -3,36 +3,47 @@ import { useNavigate, useParams } from '@tanstack/react-router';
 import { 
   ArrowLeft, 
   Calendar, 
-  User, 
-  Pill, 
-  Clock, 
+  User,  
   FileText, 
   Star,
   MapPin,
-  Phone,
   AlertTriangle,
   RefreshCw,
   CheckCircle,
-  Download // Add Download icon
+  Download,
+  Clock,
+  Ban
 } from 'lucide-react';
-import { usePrescriptionById } from '@/hooks/usePrescriptions';
+import { usePrescriptionById, useRequestRefill } from '@/hooks/usePrescriptions';
 import { useMedicines } from '@/hooks/usePharmacy';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { generatePrescriptionPDF } from '@/utils/pdfGenerator'; // Import the PDF generator
+import { generatePrescriptionPDF } from '@/utils/pdfGenerator';
+import { PrescriptionStatus } from '@/api/prescription';
 
 export default function PrescriptionDetails() {
   const navigate = useNavigate();
   const { prescriptionId } = useParams({ strict: false });
   const [isRequesting, setIsRequesting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showRefillDialog, setShowRefillDialog] = useState(false);
+  const [refillNotes, setRefillNotes] = useState('');
   
   const { data: prescription, isLoading, error } = usePrescriptionById(prescriptionId as string);
   const { data: medicines = [] } = useMedicines();
+  const requestRefillMutation = useRequestRefill();
 
   // Helper function to get medicine details with pharmacy info
   const getMedicineWithPharmacy = (medicineId: string) => {
@@ -57,33 +68,54 @@ export default function PrescriptionDetails() {
     });
   };
 
-  // Helper function to get prescription status
-  const getPrescriptionStatus = () => {
-    if (!prescription?.orders || prescription.orders.length === 0) {
-      return 'Active Prescription';
-    }
-    
-    const latestOrder = prescription.orders.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0];
-    
-    switch (latestOrder.status) {
-      case 'completed':
-        return 'Completed';
-      case 'ready':
-        return 'Ready for Pickup';
-      case 'processing':
-        return 'Processing';
-      case 'confirmed':
-        return 'Confirmed';
-      case 'cancelled':
-        return 'Cancelled';
+  // Helper function to get prescription status badge
+  const getStatusBadge = (status: PrescriptionStatus) => {
+    switch (status) {
+      case PrescriptionStatus.ACTIVE:
+        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200">Active</Badge>;
+      case PrescriptionStatus.FULFILLED:
+        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200">Fulfilled</Badge>;
+      case PrescriptionStatus.REFILL_REQUESTED:
+        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200">
+          <Clock className="w-3 h-3 mr-1" />
+          Refill Requested
+        </Badge>;
+      case PrescriptionStatus.REFILL_APPROVED:
+        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Refill Approved
+        </Badge>;
+      case PrescriptionStatus.EXPIRED:
+        return <Badge className="bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200">
+          <Ban className="w-3 h-3 mr-1" />
+          Expired
+        </Badge>;
       default:
-        return 'Active Prescription';
+        return <Badge className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">Unknown</Badge>;
     }
   };
 
-  // Get pharmacy information from the first medicine (assuming all from same pharmacy)
+  // Helper function to get prescription status display
+  const getPrescriptionStatus = () => {
+    if (!prescription) return 'Unknown Status';
+    
+    switch (prescription.status) {
+      case PrescriptionStatus.ACTIVE:
+        return 'Active Prescription';
+      case PrescriptionStatus.FULFILLED:
+        return 'Prescription Fulfilled';
+      case PrescriptionStatus.REFILL_REQUESTED:
+        return 'Refill Requested';
+      case PrescriptionStatus.REFILL_APPROVED:
+        return 'Refill Approved';
+      case PrescriptionStatus.EXPIRED:
+        return 'Prescription Expired';
+      default:
+        return 'Unknown Status';
+    }
+  };
+
+  // Get pharmacy information from the first medicine
   const getPharmacyInfo = () => {
     if (!prescription?.medications.length) return null;
     
@@ -91,18 +123,43 @@ export default function PrescriptionDetails() {
     return firstMedicine?.addedBy || null;
   };
 
-  // Handle request refill
-  const handleRequestRefill = async () => {
+  // Check if refill can be requested
+  const canRequestRefill = () => {
+    if (!prescription) return false;
+    
+    return prescription.canBeRefilled && 
+           prescription.status !== PrescriptionStatus.REFILL_REQUESTED &&
+           prescription.status !== PrescriptionStatus.EXPIRED;
+  };
+
+  // Handle request refill confirmation
+  const handleRequestRefillConfirm = async () => {
+    if (!prescription) return;
+    
     setIsRequesting(true);
     try {
-      // Simulate API call for refill request
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await requestRefillMutation.mutateAsync({
+        id: prescription.id,
+        requestData: { notes: refillNotes }
+      });
+      
       toast.success('Refill request submitted successfully!');
-    } catch (error) {
-      toast.error('Failed to submit refill request. Please try again.');
+      setShowRefillDialog(false);
+      setRefillNotes('');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to submit refill request. Please try again.');
     } finally {
       setIsRequesting(false);
     }
+  };
+
+  // Handle request refill button click
+  const handleRequestRefill = () => {
+    if (!canRequestRefill()) {
+      toast.error('This prescription cannot be refilled at this time.');
+      return;
+    }
+    setShowRefillDialog(true);
   };
 
   // Add download function
@@ -111,10 +168,7 @@ export default function PrescriptionDetails() {
     
     setIsDownloading(true);
     try {
-      // Generate PDF
       const doc = generatePrescriptionPDF(prescription, medicines);
-      
-      // Save the PDF
       doc.save(`Prescription_${prescription.id}.pdf`);
       toast.success("Prescription PDF downloaded successfully!");
     } catch (error) {
@@ -174,7 +228,6 @@ export default function PrescriptionDetails() {
               Back
             </Button>
             
-            {/* Add Download Button */}
             <Button
               onClick={handleDownloadPDF}
               variant="ghost"
@@ -202,11 +255,19 @@ export default function PrescriptionDetails() {
                 <FileText className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">{status}</h1>
+                <h1 className="text-xl font-bold">{prescription.name}</h1>
                 <p className="text-white/90 text-sm">
-                  Valid until {formatShortDate(prescription.date)}
+                  {status} • Valid until {formatShortDate(prescription.validityDate)}
                 </p>
               </div>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              {getStatusBadge(prescription.status)}
+              {prescription.status === PrescriptionStatus.REFILL_REQUESTED && prescription.refillRequestedAt && (
+                <p className="text-white/80 text-xs">
+                  Requested on {formatShortDate(prescription.refillRequestedAt)}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -247,9 +308,11 @@ export default function PrescriptionDetails() {
                             <p className="text-sm text-gray-600 dark:text-gray-400">
                               Qty: {medication.quantity || 'N/A'} tablets
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-500">
-                              7 refills remaining
-                            </p>
+                            {prescription.refillsAllowed > 0 && (
+                              <p className="text-xs text-gray-500 dark:text-gray-500">
+                                {prescription.refillsAllowed - prescription.refillsUsed} refills remaining
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -277,6 +340,31 @@ export default function PrescriptionDetails() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Refill Request Information */}
+            {prescription.status === PrescriptionStatus.REFILL_REQUESTED && prescription.refillRequestNotes && (
+              <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+                <CardHeader>
+                  <CardTitle className="text-lg text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    Pending Refill Request
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-yellow-700 dark:text-yellow-300 mb-2">
+                    Your refill request is pending doctor approval.
+                  </p>
+                  {prescription.refillRequestNotes && (
+                    <div>
+                      <p className="font-medium text-yellow-800 dark:text-yellow-200 mb-1">Your notes:</p>
+                      <p className="text-sm text-yellow-700 dark:text-yellow-300 italic">
+                        "{prescription.refillRequestNotes}"
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Prescribing Physician */}
             <Card className="bg-white dark:bg-slate-800 border-0 shadow-md">
@@ -343,15 +431,6 @@ export default function PrescriptionDetails() {
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200 mb-2">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Ready for pickup
-                      </Badge>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">
-                        Completed 2-4 hours
-                      </p>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -386,8 +465,12 @@ export default function PrescriptionDetails() {
                 
                 <Button
                   onClick={handleRequestRefill}
-                  disabled={isRequesting}
-                  className="w-full bg-[#8491D9] hover:bg-[#7380C8] text-white mb-3"
+                  disabled={!canRequestRefill() || isRequesting}
+                  className={`w-full mb-3 ${
+                    canRequestRefill() 
+                      ? 'bg-[#8491D9] hover:bg-[#7380C8] text-white' 
+                      : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                  }`}
                 >
                   {isRequesting ? (
                     <>
@@ -401,9 +484,66 @@ export default function PrescriptionDetails() {
                     </>
                   )}
                 </Button>
+
+                {!canRequestRefill() && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                    {prescription.status === PrescriptionStatus.REFILL_REQUESTED 
+                      ? 'Refill request already pending'
+                      : prescription.status === PrescriptionStatus.EXPIRED
+                      ? 'Prescription has expired'
+                      : prescription.refillsUsed >= prescription.refillsAllowed
+                      ? 'No refills remaining'
+                      : 'Refill not available'
+                    }
+                  </p>
+                )}
               </CardContent>
             </Card>
             
+            {/* Refill Information */}
+            {prescription.refillsAllowed > 0 && (
+              <Card className="bg-white dark:bg-slate-800 border-0 shadow-md">
+                <CardHeader>
+                  <CardTitle className="text-lg text-gray-900 dark:text-white">Refill Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Total Refills Allowed:</span>
+                    <p className="text-gray-600 dark:text-gray-400">{prescription.refillsAllowed}</p>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Refills Used:</span>
+                    <p className="text-gray-600 dark:text-gray-400">{prescription.refillsUsed}</p>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Remaining Refills:</span>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {prescription.refillsAllowed - prescription.refillsUsed}
+                    </p>
+                  </div>
+
+                  {prescription.lastRefillDate && (
+                    <>
+                      <Separator />
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Last Refill:</span>
+                        <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {formatDate(prescription.lastRefillDate)}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Important Reminders */}
             <Card className="bg-white dark:bg-slate-800 border-0 shadow-md">
               <CardHeader>
@@ -511,6 +651,63 @@ export default function PrescriptionDetails() {
           </div>
         </div>
       </div>
+
+      {/* Refill Request Dialog */}
+      <Dialog open={showRefillDialog} onOpenChange={setShowRefillDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request Prescription Refill</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Are you sure you want to request a refill for "{prescription.name}"? 
+              Your doctor will review this request and notify you of their decision.
+            </p>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Additional Notes (Optional)
+              </label>
+              <Textarea
+                value={refillNotes}
+                onChange={(e) => setRefillNotes(e.target.value)}
+                placeholder="Any additional information for your doctor..."
+                className="w-full"
+                rows={3}
+              />
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                <strong>Remaining refills:</strong> {prescription.refillsAllowed - prescription.refillsUsed}
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowRefillDialog(false)}
+              disabled={isRequesting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleRequestRefillConfirm}
+              disabled={isRequesting}
+              className="bg-[#8491D9] hover:bg-[#7380C8]"
+            >
+              {isRequesting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Requesting...
+                </>
+              ) : (
+                'Request Refill'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

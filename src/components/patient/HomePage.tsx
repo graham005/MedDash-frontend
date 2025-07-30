@@ -21,7 +21,7 @@ import { usePrescriptions } from '@/hooks/usePrescriptions';
 import { usePharmacyOrders } from '@/hooks/usePharmacy';
 import { useAllAvailabilitySlots } from '@/hooks/useAvailability';
 import type { Prescription } from '@/api/prescription';
-import { HealthBotChat } from '@/components/Healthbot/HealthBotChat';
+import HealthBot from '@/components/Healthbot/HealthBot';
 import CreatePatientProfileModal from './profile/CreateProfile';
 
 export default function PatientHomePage() {
@@ -148,7 +148,7 @@ export default function PatientHomePage() {
     }
   };
 
-  // Add state for HealthBot modal
+  // Add state for HealthBot floating panel
   const [showHealthBot, setShowHealthBot] = useState(false);
 
   // Profile creation modal state
@@ -175,27 +175,29 @@ export default function PatientHomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
-      {/* Floating HealthBot Button - Enhanced for mobile */}
-      <button
-        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 lg:bottom-8 lg:right-8 z-50 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 flex items-center justify-center text-xl sm:text-2xl lg:text-3xl transition-all duration-200 active:scale-95"
-        onClick={() => setShowHealthBot(true)}
-        aria-label="Open HealthBot"
-      >
-        🤖
-      </button>
+      {/* Floating HealthBot Button */}
+      {!showHealthBot && (
+        <button
+          className="fixed bottom-15 right-9 z-50 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center text-2xl transition-all duration-200 active:scale-95"
+          onClick={() => setShowHealthBot(true)}
+          aria-label="Open HealthBot"
+        >
+          🤖
+        </button>
+      )}
 
-      {/* HealthBot Modal Overlay - Enhanced for mobile */}
+      {/* Floating HealthBot Panel */}
       {showHealthBot && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-4">
-          <div className="relative w-full max-w-md mx-auto">
+        <div className="fixed top-6 right-6 z-50 w-full max-w-md">
+          <div className="relative">
             <button
-              className="absolute top-2 right-2 z-10 bg-white dark:bg-slate-800 rounded-full p-2 shadow-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              className="absolute top-2 right-1 z-10 bg-white dark:bg-slate-800 rounded-full p-2 shadow-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
               onClick={() => setShowHealthBot(false)}
               aria-label="Close HealthBot"
             >
               <span className="text-lg font-bold text-gray-600 dark:text-gray-300">&times;</span>
             </button>
-            <HealthBotChat className="shadow-2xl rounded-lg overflow-hidden" />
+            <HealthBot />
           </div>
         </div>
       )}

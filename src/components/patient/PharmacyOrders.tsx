@@ -204,7 +204,7 @@ export default function PharmacyOrders() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3">{formatDate(order.createdAt)}</td>
-                    <td className="px-4 py-3">Ksh {order.totalAmount.toLocaleString()}</td>
+                    <td className="px-4 py-3">Ksh {order?.totalAmount?.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right">
                       <Button
                         size="sm"

@@ -1,12 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { usePrescriptions } from '@/hooks/usePrescriptions';
-import { 
-    useMedicines, 
-    useCreatePharmacyOrder, 
-    useConfirmOrder, 
-    useUpdateMedicine 
-} from '@/hooks/usePharmacy';
+import { useMedicines, useCreatePharmacyOrder, useConfirmOrder } from '@/hooks/usePharmacy';
 import { useInitializePayment, useVerifyPayment } from '@/hooks/usePayments';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -14,8 +9,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, FileText, Search, PlusCircle, CreditCard } from 'lucide-react';
 import { OrderStatus } from '@/api/pharmacy-order';
-import { useQueryClient } from '@tanstack/react-query';
-import type { Medicine } from '@/api/pharmacy';
 
 // Paystack payment modal
 function PaystackPaymentModal({
@@ -125,14 +118,12 @@ function PaystackPaymentModal({
 
 export default function NewOrder() {
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
     const { data: prescriptions = [], isLoading, error } = usePrescriptions();
     const { data: medicines = [] } = useMedicines();
     const { data: currentUser } = useCurrentUser();
     const createOrder = useCreatePharmacyOrder();
     const initializePayment = useInitializePayment();
     const confirmOrder = useConfirmOrder();
-    const updateMedicine = useUpdateMedicine();
 
     const [search, setSearch] = useState('');
     const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
@@ -168,71 +159,6 @@ export default function NewOrder() {
         }
         return sum;
     }, [selectedPrescriptionId, prescriptions, medicines]);
-
-    // Function to update medicine stock in both frontend and backend
-    const updateMedicineStock = async (prescriptionId: string) => {
-        const prescription = prescriptions.find(p => p.id === prescriptionId);
-        if (!prescription) {
-            console.warn('Prescription not found for stock update', prescriptionId);
-            return;
-        }
-
-        console.log('Updating stock for prescription:', prescription.name);
-
-        // Update medicines cache with reduced stock
-        queryClient.setQueryData(['medicines'], (oldMedicines: Medicine[] | undefined) => {
-            if (!oldMedicines || !Array.isArray(oldMedicines)) {
-                console.warn('No medicines found in cache or invalid data');
-                return oldMedicines;
-            }
-
-            console.log('Original medicines in cache:', oldMedicines.length);
-            
-            const updatedMedicines = oldMedicines.map((medicine) => {
-                const prescriptionMed = prescription.medications.find(
-                    med => med.medicineId === medicine.id
-                );
-                
-                if (prescriptionMed && prescriptionMed.quantity) {
-                    console.log(
-                        `Updating medicine ${medicine.name} stock: ${medicine.stock} - ${prescriptionMed.quantity} = ${Math.max(0, medicine.stock - prescriptionMed.quantity)}`
-                    );
-                    
-                    return {
-                        ...medicine,
-                        stock: Math.max(0, medicine.stock - prescriptionMed.quantity)
-                    };
-                }
-                
-                return medicine;
-            });
-            
-            console.log('Updated medicines cache');
-            return updatedMedicines;
-        });
-
-        // Also update the backend database for each medicine
-        try {
-            const medicationUpdates = prescription.medications.map(async (med) => {
-                const medicine = medicines.find(m => m.id === med.medicineId);
-                if (medicine && medicine.stock && med.quantity) {
-                    const newStock = Math.max(0, medicine.stock - med.quantity);
-                    console.log(`Updating medicine ${medicine.name} in backend: ${medicine.stock} -> ${newStock}`);
-                    
-                    return updateMedicine.mutateAsync({
-                        id: medicine.id,
-                        data: { stock: newStock }
-                    });
-                }
-            });
-            
-            await Promise.all(medicationUpdates.filter(Boolean));
-            console.log('Backend medicine stock updates completed');
-        } catch (error) {
-            console.error('Error updating medicine stock in backend:', error);
-            toast.error('Failed to update medicine stock in database');
-        }
-    };
 
     // Handle order creation and payment initialization
     const handleCreateOrder = async () => {
@@ -275,6 +201,7 @@ export default function NewOrder() {
             setShowPaymentModal(true);
 
             // Step 4: Confirm the order status after payment initialization
+            // (You may want to move this to after payment verification if you only want to confirm after successful payment)
             await confirmOrder.mutateAsync(order.id);
 
         } catch (error: any) {
@@ -285,15 +212,9 @@ export default function NewOrder() {
     };
 
     // Handle successful payment
-    const handlePaymentSuccess = async () => {
+    const handlePaymentSuccess = () => {
         setShowPaymentModal(false);
         setPaymentData(null);
-        
-        // Update medicine stock quantities in frontend and backend
-        if (selectedPrescriptionId) {
-            await updateMedicineStock(selectedPrescriptionId);
-        }
-        
         toast.success('Payment successful!');
 
         if (pendingOrderId) {
@@ -441,13 +362,6 @@ export default function NewOrder() {
                                     totalAmount: Number(totalAmount),
                                     status: OrderStatus.PENDING
                                 });
-                                
-                                // Confirm the order
-                                await confirmOrder.mutateAsync(order.id);
-                                
-                                // Update medicine stock quantities in frontend and backend
-                                await updateMedicineStock(selectedPrescriptionId);
-                                
                                 toast.success('Order created successfully!');
                                 navigate({ to: `/dashboard/patient/orders/${order.id}` });
                             } catch (error: any) {

@@ -1,18 +1,24 @@
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import React, { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Navigation, Phone, Clock, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
-import { PRIORITY_CONFIG, STATUS_CONFIG } from '@/api/ems';
-import type { EMSRequest } from '../../types/types';
-import { getAddressFromCoordinates } from '@/hooks/useGeolocation';
+import { Button } from '@/components/ui/button';
+import {
+  MapPin,
+  Navigation,
+  Clock,
+  Route,
+  RefreshCw,
+  Target
+} from 'lucide-react';
+import L from 'leaflet';
+import type { EMSRequest } from '@/types/types';
+import { useRouteTracking } from '@/hooks/useRouteTracking';
 
-// Import Leaflet CSS
+// Import Leaflet CSS - This is crucial for proper map display
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default markers in React Leaflet
+// Fix for default markers in Leaflet with bundlers
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -20,474 +26,346 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-interface EMSMapProps {
+interface EMSMapWithRouteProps {
   requests: EMSRequest[];
-  selectedRequest?: EMSRequest | null;
+  selectedRequest: EMSRequest | null;
+  paramedicLocation: { lat: number; lng: number } | null;
+  activeRequest: EMSRequest | null;
   onRequestSelect?: (request: EMSRequest) => void;
-  showPatientLocation?: boolean;
-  showParamedicLocation?: boolean;
-  centerLat?: number;
-  centerLng?: number;
-  zoom?: number;
   className?: string;
 }
 
-interface MarkerData {
-  id: string;
-  lat: number;
-  lng: number;
-  type: 'patient' | 'paramedic';
-  request: EMSRequest;
-}
-
-// Add interface for marker with address
-interface MarkerDataWithAddress extends MarkerData {
-  address?: string;
-}
-
-// Custom Icons
-type PriorityKey = keyof typeof PRIORITY_CONFIG;
-
-const createCustomIcon = (type: 'patient' | 'paramedic', priority: string, isSelected: boolean = false) => {
-  const priorityConfig = PRIORITY_CONFIG[priority as PriorityKey];
-  const size = isSelected ? 40 : 32;
-  
-  const iconHtml = `
-    <div style="
-      position: relative;
-      width: ${size}px;
-      height: ${size}px;
-      background-color: ${type === 'patient' ? '#ef4444' : '#3b82f6'};
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-      border: ${isSelected ? '3px solid #fbbf24' : '2px solid white'};
-    ">
-      <svg width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="white">
-        ${type === 'patient' 
-          ? '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>'
-          : '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'
-        }
-      </svg>
-      <div style="
-        position: absolute;
-        top: -2px;
-        right: -2px;
-        width: ${size * 0.3}px;
-        height: ${size * 0.3}px;
-        background-color: ${priorityConfig.badgeColor.includes('red') ? '#dc2626' : priorityConfig.badgeColor.includes('yellow') ? '#eab308' : '#16a34a'};
-        border-radius: 50%;
-        border: 2px solid white;
-      "></div>
-    </div>
-  `;
-
-  return L.divIcon({
-    html: iconHtml,
-    className: 'custom-marker',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -size / 2],
-  });
-};
-
-// Map controls component
-function MapControls({ onReset }: { onReset: () => void }) {
-  const map = useMap();
-  
-  const handleZoomIn = () => map.zoomIn();
-  const handleZoomOut = () => map.zoomOut();
-
-  return (
-    <div className="absolute top-4 right-4 z-[1000] space-y-2">
-      <Button
-        size="sm"
-        variant="outline"
-        className="bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl w-10 h-10 p-0"
-        onClick={handleZoomIn}
-      >
-        <ZoomIn className="w-4 h-4" />
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl w-10 h-10 p-0"
-        onClick={handleZoomOut}
-      >
-        <ZoomOut className="w-4 h-4" />
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl w-10 h-10 p-0"
-        onClick={onReset}
-        title="Reset View"
-      >
-        <RotateCcw className="w-4 h-4" />
-      </Button>
-    </div>
-  );
-}
-
-// Auto pan to locations component
-function AutoPanToLocations({ 
-  markers, 
-  selectedRequest, 
-  defaultCenter, 
-  defaultZoom 
-}: { 
-  markers: MarkerData[];
-  selectedRequest?: EMSRequest | null;
-  defaultCenter: [number, number];
-  defaultZoom: number;
-}) {
+// Enhanced Route display component with map invalidation
+function RouteDisplay({ route }: { route: any }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!map) return;
-
-    // If a specific request is selected, pan to it
-    if (selectedRequest) {
-      if (selectedRequest.patientLat && selectedRequest.patientLng) {
-        map.setView([selectedRequest.patientLat, selectedRequest.patientLng], 15, {
-          animate: true,
-          duration: 1
+    if (route && route.coordinates && route.coordinates.length > 0) {
+      try {
+        // Fit map to show the entire route
+        const bounds = L.latLngBounds(route.coordinates);
+        map.fitBounds(bounds, {
+          padding: [20, 20],
+          maxZoom: 16 // Prevent zooming too close
         });
-      }
-      return;
-    }
 
-    // If there are markers, fit bounds to show all locations
-    if (markers.length > 0) {
-      const bounds = L.latLngBounds(markers.map(marker => [marker.lat, marker.lng]));
-      
-      // Add some padding to the bounds
-      const paddedBounds = bounds.pad(0.1);
-      
-      // Fit the map to show all markers
-      map.fitBounds(paddedBounds, {
-        animate: true,
-        duration: 1,
-        maxZoom: 16 // Prevent zooming in too much for single markers
-      });
-    } else {
-      // No markers, return to default view
-      map.setView(defaultCenter, defaultZoom, {
-        animate: true,
-        duration: 1
-      });
+        // Force map to invalidate size after fitting bounds
+        setTimeout(() => {
+          map.invalidateSize();
+        }, 100);
+      } catch (error) {
+        console.warn('Error fitting route bounds:', error);
+      }
     }
-  }, [map, markers, selectedRequest, defaultCenter, defaultZoom]);
+  }, [route, map]);
 
   return null;
 }
 
-// Legend component
-function MapLegend() {
-  return (
-    <div className="absolute bottom-4 left-4 z-[1000]">
-      <Card className="p-3 space-y-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm">
-        <div className="text-xs font-medium">Legend</div>
-        <div className="flex items-center gap-2 text-xs">
-          <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow"></div>
-          <span>Patient Location</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <div className="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow"></div>
-          <span>Paramedic Location</span>
-        </div>
-        <div className="border-t pt-2 space-y-1">
-          <div className="text-xs font-medium">Priority</div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 bg-red-600 rounded-full"></div>
-            <span>Critical</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-            <span>Urgent</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span>Routine</span>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-}
+// Map invalidation component to fix display issues
+function MapSizeHandler() {
+  const map = useMap();
 
-export default function EMSMap({
-  requests,
-  selectedRequest,
-  onRequestSelect,
-  showPatientLocation = true,
-  showParamedicLocation = true,
-  centerLat = -1.2921, // Nairobi coordinates
-  centerLng = 36.8219,
-  zoom = 13,
-  className = ''
-}: EMSMapProps) {
-  const [markers, setMarkers] = useState<MarkerDataWithAddress[]>([]);
-  const [mapKey, setMapKey] = useState(0);
-  const defaultCenter: [number, number] = [centerLat, centerLng];
-
-  // Create markers from requests with address lookup
   useEffect(() => {
-    const createMarkersWithAddresses = async () => {
-      const newMarkers: MarkerDataWithAddress[] = [];
-
-      for (const request of requests) {
-        if (showPatientLocation && request.patientLat && request.patientLng) {
-          try {
-            const address = await getAddressFromCoordinates(request.patientLat, request.patientLng);
-            newMarkers.push({
-              id: `patient-${request.id}`,
-              lat: request.patientLat,
-              lng: request.patientLng,
-              type: 'patient',
-              request,
-              address,
-            });
-          } catch (error) {
-            // Fallback to coordinates if address lookup fails
-            newMarkers.push({
-              id: `patient-${request.id}`,
-              lat: request.patientLat,
-              lng: request.patientLng,
-              type: 'patient',
-              request,
-              address: `${request.patientLat.toFixed(4)}, ${request.patientLng.toFixed(4)}`,
-            });
-          }
-        }
-
-        if (showParamedicLocation && request.paramedicLat && request.paramedicLng) {
-          try {
-            const address = await getAddressFromCoordinates(request.paramedicLat, request.paramedicLng);
-            newMarkers.push({
-              id: `paramedic-${request.id}`,
-              lat: request.paramedicLat,
-              lng: request.paramedicLng,
-              type: 'paramedic',
-              request,
-              address,
-            });
-          } catch (error) {
-            newMarkers.push({
-              id: `paramedic-${request.id}`,
-              lat: request.paramedicLat,
-              lng: request.paramedicLng,
-              type: 'paramedic',
-              request,
-              address: `${request.paramedicLat.toFixed(4)}, ${request.paramedicLng.toFixed(4)}`,
-            });
-          }
-        }
-      }
-
-      setMarkers(newMarkers);
+    // Force map to recalculate size on mount and when container changes
+    const handleResize = () => {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
     };
 
-    createMarkersWithAddresses();
-  }, [requests, showPatientLocation, showParamedicLocation]);
+    // Initial size invalidation
+    handleResize();
 
-  // Force map re-render when markers change significantly
+    // Add resize listener
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [map]);
+
+  return null;
+}
+
+function PanToPatient({ patientLat, patientLng }: { patientLat: number, patientLng: number }) {
+  const map = useMap();
   useEffect(() => {
-    setMapKey(prev => prev + 1);
-  }, [requests.length]);
-
-  // Reset map to default view
-  const handleResetView = () => {
-    setMapKey(prev => prev + 1); // This will trigger a re-render with default center
-  };
-
-  // Get the initial center based on data
-  const getInitialCenter = (): [number, number] => {
-    // If there's a selected request with patient location, center on it
-    if (selectedRequest?.patientLat && selectedRequest?.patientLng) {
-      return [selectedRequest.patientLat, selectedRequest.patientLng];
+    if (map && patientLat && patientLng) {
+      map.setView([patientLat, patientLng], 15, { animate: true });
     }
-    
-    // If there are markers, center on the first patient location
-    const firstPatientMarker = markers.find(m => m.type === 'patient');
-    if (firstPatientMarker) {
-      return [firstPatientMarker.lat, firstPatientMarker.lng];
-    }
-    
-    // Fall back to default center
-    return defaultCenter;
-  };
+  }, [map, patientLat, patientLng]);
+  return null;
+}
 
-  const getInitialZoom = (): number => {
-    // If there's a selected request or single marker, zoom in more
-    if (selectedRequest || markers.length === 1) {
-      return 15;
-    }
-    
-    // If multiple markers, use default zoom (fitBounds will override this)
-    return zoom;
+export default function EMSMapWithRoute({
+  requests,
+  selectedRequest,
+  paramedicLocation,
+  activeRequest,
+  onRequestSelect,
+  className = ''
+}: EMSMapWithRouteProps) {
+  const {
+    currentRoute,
+    distanceToPatient,
+    distancesToRequests,
+    isCalculating,
+    getETA,
+    getClosestRequest,
+    refreshRoutes
+  } = useRouteTracking(paramedicLocation, activeRequest, requests);
+
+  const [showRoute, setShowRoute] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
+  const closestRequest = getClosestRequest();
+  const eta = getETA();
+
+  // Handle map ready state
+  const handleMapReady = () => {
+    setMapReady(true);
   };
 
   return (
     <div className={`relative ${className}`}>
-      <Card className="h-full min-h-[400px] overflow-hidden">
-        <div className="relative w-full h-full">
+      <Card className="h-full overflow-hidden">
+        {/* Route Info Panel */}
+        {activeRequest && distanceToPatient && (
+          <div className="absolute top-4 left-4 z-[1000] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 min-w-64">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium flex items-center gap-2">
+                <Target className="w-4 h-4 text-blue-600" />
+                Active Route
+              </h3>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={refreshRoutes}
+                disabled={isCalculating}
+              >
+                <RefreshCw className={`w-4 h-4 ${isCalculating ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Distance:</span>
+                <span className="font-medium">{distanceToPatient.distanceText}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Duration:</span>
+                <span className="font-medium">{distanceToPatient.durationText}</span>
+              </div>
+              {eta && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">ETA:</span>
+                  <span className="font-medium">{eta.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</span>
+                </div>
+              )}
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full mt-3"
+              onClick={() => setShowRoute(!showRoute)}
+            >
+              <Route className="w-4 h-4 mr-2" />
+              {showRoute ? 'Hide Route' : 'Show Route'}
+            </Button>
+          </div>
+        )}
+
+        {/* Closest Request Indicator */}
+        {!activeRequest && closestRequest && (
+          <div className="absolute top-4 right-4 z-[1000] bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-green-800 dark:text-green-200">
+              <Navigation className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                Closest: {distancesToRequests[closestRequest.id]?.distanceText}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Map Container with explicit height and styles */}
+        <div className="relative w-full h-full min-h-[400px]">
           <MapContainer
-            key={mapKey}
-            center={getInitialCenter()}
-            zoom={getInitialZoom()}
-            style={{ height: '100%', width: '100%' }}
-            className="z-0"
-            zoomControl={false}
+            center={paramedicLocation ? [paramedicLocation.lat, paramedicLocation.lng] : [-1.2921, 36.8219]}
+            zoom={13}
+            className="h-full w-full"
+            style={{
+              height: '100%',
+              width: '100%',
+              minHeight: '400px',
+              zIndex: 1
+            }}
+            whenReady={handleMapReady}
+            scrollWheelZoom={true}
+            doubleClickZoom={true}
+            dragging={true}
+            zoomControl={true}
           >
-            {/* OpenStreetMap Tile Layer */}
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               maxZoom={19}
+              minZoom={3}
             />
 
-            {/* Auto pan to locations */}
-            <AutoPanToLocations 
-              markers={markers}
-              selectedRequest={selectedRequest}
-              defaultCenter={defaultCenter}
-              defaultZoom={zoom}
-            />
+            {/* Map size handler */}
+            <MapSizeHandler />
 
-            {/* Updated markers with address display */}
-            {markers.map((marker) => {
-              const isSelected = selectedRequest?.id === marker.request.id;
-              const icon = createCustomIcon(marker.type, marker.request.priority, isSelected);
+            {/* Pan to patient location when selectedRequest changes */}
+            {selectedRequest && (
+              <PanToPatient patientLat={selectedRequest.patientLat} patientLng={selectedRequest.patientLng} />
+            )}
+
+            {/* Display route if available */}
+            {showRoute && currentRoute && currentRoute.coordinates && mapReady && (
+              <>
+                <Polyline
+                  positions={currentRoute.coordinates}
+                  color="#3b82f6"
+                  weight={6}
+                  opacity={0.8}
+                />
+                <RouteDisplay route={currentRoute} />
+              </>
+            )}
+
+            {/* Paramedic location */}
+            {paramedicLocation && mapReady && (
+              <Marker
+                position={[paramedicLocation.lat, paramedicLocation.lng]}
+                icon={L.divIcon({
+                  html: `
+                    <div class="flex items-center justify-center bg-blue-600 text-white rounded-full p-2 shadow-lg border-2 border-white" style="width: 32px; height: 32px;">
+                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2L3 7v11a1 1 0 001 1h2a1 1 0 001-1v-4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 001 1h2a1 1 0 001-1V7l-7-5z"/>
+                      </svg>
+                    </div>
+                  `,
+                  className: 'custom-marker',
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 16],
+                })}
+              >
+                <Popup>
+                  <div className="p-2">
+                    <h3 className="font-medium text-blue-600">Your Location</h3>
+                    <p className="text-sm text-gray-600">
+                      {paramedicLocation.lat.toFixed(4)}, {paramedicLocation.lng.toFixed(4)}
+                    </p>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+
+            {/* Patient locations */}
+            {mapReady && requests.map(request => {
+              const distance = distancesToRequests[request.id];
+              const isActive = activeRequest?.id === request.id;
+              const isSelected = selectedRequest?.id === request.id;
 
               return (
                 <Marker
-                  key={marker.id}
-                  position={[marker.lat, marker.lng]}
-                  icon={icon}
+                  key={request.id}
+                  position={[request.patientLat, request.patientLng]}
+                  icon={L.divIcon({
+                    html: `
+                      <div class="relative flex flex-col items-center">
+                        <div class="flex items-center justify-center ${isActive ? 'bg-red-600 animate-pulse' : isSelected ? 'bg-orange-500' : 'bg-red-500'} text-white rounded-full p-2 shadow-lg border-2 border-white" style="width: 32px; height: 32px;">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+                          </svg>
+                        </div>
+                        ${distance ? `
+                          <div class="absolute top-8 bg-white dark:bg-gray-800 text-xs px-2 py-1 rounded shadow-md whitespace-nowrap border">
+                            ${distance.distanceText}
+                          </div>
+                        ` : ''}
+                      </div>
+                    `,
+                    className: 'custom-marker',
+                    iconSize: [32, distance ? 60 : 32],
+                    iconAnchor: [16, 16],
+                  })}
                   eventHandlers={{
-                    click: () => onRequestSelect?.(marker.request),
+                    click: () => onRequestSelect?.(request),
                   }}
                 >
-                  <Popup
-                    closeButton={false}
-                    className="custom-popup"
-                    maxWidth={320}
-                  >
-                    <div className="p-2 space-y-3">
-                      {/* Header */}
-                      <div className="flex items-center justify-between">
-                        <Badge className={STATUS_CONFIG[marker.request.status].color}>
-                          {STATUS_CONFIG[marker.request.status].label}
-                        </Badge>
-                        <Badge className={PRIORITY_CONFIG[marker.request.priority].color}>
-                          {PRIORITY_CONFIG[marker.request.priority].label}
+                  <Popup>
+                    <div className="p-3 min-w-64">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-medium">Emergency Request</h3>
+                        <Badge className="text-xs">
+                          {request.priority.toUpperCase()}
                         </Badge>
                       </div>
-                      
-                      {/* Content */}
-                      <div className="space-y-2">
-                        <div>
-                          <p className="font-medium text-sm">
-                            {marker.type === 'patient' ? 'Patient Location' : 'Paramedic Location'}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {marker.type === 'patient' 
-                              ? `${marker.request.patient.firstName} ${marker.request.patient.lastName}`
-                              : marker.request.paramedic
-                                ? `${marker.request.paramedic.firstName} ${marker.request.paramedic.lastName}`
-                                : 'Not assigned'
-                            }
-                          </p>
-                        </div>
 
-                        {/* Display address instead of coordinates */}
+                      <div className="space-y-2 text-sm">
                         <div>
-                          <p className="text-sm font-medium">Location</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 break-words">
-                            {marker.address || `${marker.lat.toFixed(4)}, ${marker.lng.toFixed(4)}`}
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-sm font-medium">Emergency Type</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {marker.request.emergencyType.replace('_', ' ')}
-                          </p>
-                        </div>
-
-                        {marker.request.description && (
-                          <div>
-                            <p className="text-sm font-medium">Description</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                              {marker.request.description}
-                            </p>
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center gap-1 text-gray-500">
-                          <Clock className="w-3 h-3" />
-                          <span className="text-xs">
-                            {new Date(marker.request.createdAt).toLocaleString()}
+                          <span className="text-gray-600">Patient:</span>
+                          <span className="ml-2 font-medium">
+                            {request.patient.firstName} {request.patient.lastName}
                           </span>
                         </div>
+
+                        <div>
+                          <span className="text-gray-600">Type:</span>
+                          <span className="ml-2">{request.emergencyType}</span>
+                        </div>
+
+                        {distance && (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600">Distance:</span>
+                              <span className="font-medium">{distance.distanceText}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600">Duration:</span>
+                              <span className="font-medium">{distance.durationText}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Actions */}
-                      <div className="space-y-2">
-                        {marker.request.contactNumber && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(`tel:${marker.request.contactNumber}`);
-                            }}
-                          >
-                            <Phone className="w-3 h-3 mr-1" />
-                            Call {marker.request.contactNumber}
-                          </Button>
-                        )}
-
+                      <div className="flex gap-2 mt-3">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="w-full"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const url = `https://www.google.com/maps/dir/?api=1&destination=${marker.lat},${marker.lng}`;
+                          onClick={() => {
+                            const url = `https://www.google.com/maps/dir/?api=1&destination=${request.patientLat},${request.patientLng}`;
                             window.open(url, '_blank');
                           }}
+                          className="flex-1"
                         >
                           <Navigation className="w-3 h-3 mr-1" />
-                          Get Directions
+                          Directions
                         </Button>
+
+                        {request.contactNumber && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(`tel:${request.contactNumber}`)}
+                            className="flex-1"
+                          >
+                            Call
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </Popup>
                 </Marker>
               );
             })}
-
-            {/* Custom Controls */}
-            <MapControls onReset={handleResetView} />
           </MapContainer>
-
-          {/* Legend */}
-          <MapLegend />
-
-          {/* Loading overlay when no requests */}
-          {requests.length === 0 && (
-            <div className="absolute inset-0 bg-gray-50 dark:bg-gray-900 bg-opacity-50 flex items-center justify-center z-[1000]">
-              <Card className="p-6 text-center">
-                <MapPin className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-600 dark:text-gray-400">No emergency requests to display</p>
-              </Card>
-            </div>
-          )}
         </div>
       </Card>
     </div>
